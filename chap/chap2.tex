@@ -1,0 +1,827 @@
+\chapter{理论} % (fold)
+\label{cha:理论}
+本章我们均假定数据库的域$\mathcal{X} = [-1, 1]^d$. 我们希望针对所有的光滑查询设计一个查询规模指数大、对查询有精确性保证、高效、输出合成数据库的隐私算法. 先定义光滑查询.
+\begin{defn}[$(K, B)$-光滑查询]\label{defn:K, B-光滑查询}
+  称$f\colon[-1, 1]^d\to\mathbb R$是$(K, B)$-光滑的, 若$B \ge 0$, $f$所有$K$阶混合偏导数存在且
+  \[
+    \|f\|_K\triangleq \sup_{\|\mathbf{k}\|_1 \le K}\sup_{\mathbf{x}\in[-1, 1]^d} \left|D^{\mathbf{k}}f(\mathbf{x})\right| \le B.
+  \]
+  其中$\mathbf{k} = (k_1, k_2, \dots, k_d)$, 微分算子$D^{\mathbf{k}}$定义为
+  \[
+    D^{\mathbf{k}} = \frac{\partial^{k_1}}{\partial x_1^{k_1}}\cdots\frac{\partial^{k_d}}{\partial x_1^{k_d}}.
+  \]
+  记$C_B^K$为所有$(K, B)$-光滑查询的集合. 
+\end{defn}
+光滑函数在机器学习的许多场合都有广泛的应用\parencite{van1996weak, wahba1999support, smola1998connection}, 其中 Gauss 核函数的线性组合在核方法中有广泛的用途\parencite{shawe2004kernel, liu2011kernel}:
+\begin{equation}\label{eq:Gauss核函数线性组合}
+  f(\mathbf{x}) = \sum_{j = 1}^J \alpha_j \exp\left(-\frac{\|\mathbf{x} - \mathbf{x}_j\|^2}{2\sigma^2}\right), 
+\end{equation}
+  
+这里$j = 1, 2, \dots, J$, $\alpha_j$是常数, $\mathbf{x}_j$是常向量. 本文针对的查询为\eqref{eq:Gauss核函数线性组合}指定的线性查询. 命题\ref{prop:Gauss 核函数线性组合的光滑性}刻画了这类函数的光滑性.
+\begin{lem}[\parencite{Indritz1961}]\label{Lem:Hermite多项式不等式}
+  对 $k$-阶 Hermite 多项式
+  \[
+  H_k(x) = (-1)^k e^{x^2} \frac{\mathrm{d}^k}{\mathrm{d}x^k}e^{-x^2},
+  \]
+  其中 $k \in \mathbb{N}, x \in \mathbb R$, 有不等式
+  \[
+  |H_k(x)| \leq \left(2^k k!\right)^{\frac{1}{2}}e^{\frac{1}{2}x^2}.
+  \]
+\end{lem}
+\begin{prop}[Gauss 核函数线性组合的光滑性]\label{prop:Gauss 核函数线性组合的光滑性}
+  令$f(\mathbf{x})$如\eqref{eq:Gauss核函数线性组合}定义, 其中$\mathbf{x}\in\mathbb R^d$, 令$\boldsymbol{\alpha} = (\alpha_1,\ldots,\alpha_J)$ 且 $\|\boldsymbol{\alpha}\|_1 \le 1$. 则对任意 $K \le  \sigma^2$, \[
+    \|f\|_{K} \le 1.
+  \]
+\end{prop}
+\begin{proof}
+  记$g(\mathbf{x}) = \exp \left(- \frac{\|\mathbf{x}-\mathbf{y}\|^2}{2 \sigma^2} \right)$, 其中$\mathbf{y}\in\mathbb R^d$, 由$\|\boldsymbol{\alpha}\|_1 \le 1$, 往证$\|g(\mathbf{x})\|\le1$. 记$h(x) = e^{-x^2}$, 由引理\ref{Lem:Hermite多项式不等式}, 我们有
+  \[
+    \left|\frac{\mathrm{d}^k}{\mathrm{d}x^k} h(x)\right| = \left|H_k(x)e^{-x^2}\right| \le \left(2^k k!\right)^{\frac{1}{2}}.
+  \]
+  从而
+  \begin{align*}
+    \left|D^{\mathbf{k}}g(\mathbf{x})\right|
+    = \prod_{j=1}^d \frac{\mathrm{d}^{k_j}}{\mathrm{d}x_j^{k_j}}
+    h\left(\frac{x_j-y_j}{\sqrt{2}\sigma} \right) \leq \left(\frac{1}{\sqrt{2}\sigma}\right)^{K}\left(\prod_{j=1}^d\left(2^{k_j}k_j!\right)\right)
+    ^{\frac{1}{2}} \leq \frac{(K!)^{\frac{1}{2}}}{\sigma^K}.
+  \end{align*}
+  显然, 当$K\le\sigma^2$时, 
+  \[
+    \left|D^{\mathbf{k}}g(\mathbf{x})\right|\leq\frac{K^{\frac{K}{2}}}{\sigma^K}\leq 1. \qedhere
+  \]
+\end{proof}
+\section{保证\texorpdfstring{$\epsilon$}{ϵ}-差分隐私的三角机制} % (fold)
+\label{sec:_epsilon_差分隐私机制}
+回顾命题\ref{prop:Laplace 机制 I}, Laplace 机制可以接受任何形式的查询 ------ 只要其敏感性可以被控制. 由 Laplace 机制的精确性(命题\ref{prop:Laplace机制的alpha,beta精确性})可知, 保证$\epsilon$-差分隐私的Laplace机制至多能回答$O(n)$个线性查询. 在\ref{sec:精确性与查询规模}一节我们已经提到, Laplace 机制没有考虑查询类的信息, 这可能会导致过度添加噪音. 考虑一个极端的例子: 设$\mathcal{M}$ 为 Laplace 机制 I, 令$f$为敏感度为$1$的一个查询, 记$q_f$为对应的线性查询, 考虑查询类$Q = \{j^{-1}q_f\colon j = 1, 2, \dots, k\}$, 显然$Q$的敏感性最大为$n^{-1}$, $\mathcal{M}$将为每一个回答添加$\mathrm{Lap}\left(\frac{k}{n\epsilon}\right)$噪音. 但是, 如果我们考虑只对$j = 1$时的$q_f$使用 Laplace 机制 I, 则回答只需要添加$\mathrm{Lap}\left(\frac{1}{n\epsilon}\right)$噪音, 然后对任意的$j\le k$, 将该回答乘以$j^{-1}$作为查询的回答. 记这样的机制为$\mathcal{M}'$, 根据命题\ref{prop:后处理隐私不变}, $\mathcal{M}'$保证$\epsilon$-差分隐私. 由命题\ref{prop:Laplace机制的alpha,beta精确性}, $\mathcal{M}'$还保证$\left(\frac{1}{n\epsilon}\log(\frac{1}{\beta}), \beta\right)$精确性, 优于 Laplace 机制 I. 并且, 对这个特殊的查询类$Q$, 由于$Q$可以被分解成一个基本查询和线性表出所表示的后处理过程, 机制$\mathcal{M}'$使我们无需限制$k \le O(n)$来保证精确性, 而事实上, $\mathcal{M}'$的精确性与$k$无关. 
+
+从上述例子可以看出, 如果我们精心选择 Laplace 机制的查询函数, 将线性表出作为后处理过程, 则机制可以回答所有这些查询函数的线性表出, 并且只要线性表出的系数$\boldsymbol{\alpha}$满足$\|\boldsymbol{\alpha}\|_1 \le C$, 其中$C$为常数, 那么, 精确性仍然是可以保证的, 我们称这样的查询函数为查询基. 进一步地, 如果一个新的查询函数可以被查询基线性组合逼近, 并且误差可以被良好控制, 那么我们可以把对新的查询函数的回答转为对已有的查询基线性组合的回答, 并保证一定的精确性. 这样, 回答查询函数就转化为了计算线性组合的系数的问题. 这也是\parencite{wang2013efficient}的核心思想.
+
+然而, 估计系数涉及到多维数值积分, 虽然理论上是多项式时间可解的, 但实际中仍然效率不高, 除此之外, 该机制并不输出合成数据库. 回顾定义\ref{defn:合成数据库}, 合成数据库可以为$\mathcal{X}$上的一个分布$u$所刻画. 所有在合成数据库上计算的线性查询$q_f$, 都可以看作对$\mathbb E_{\mathbf{x}\sim u}(f(\mathbf{x}))$的近似. 因此, 如果我们选择$u$, 使得对于任一查询基$\phi$, $\mathbb E_{\mathbf{x}\sim u}(\phi(\mathbf{x}))$与使用原始数据计算的$\frac{1}{n}\sum_{i=1}^n \phi(\mathbf{x}_i)$接近, 则对于所有光滑函数, 由于其线性表示存在, 且系数是$L_1$-可控的, 从而$\mathbb E_{\mathbf{x}\sim u}(f(\mathbf{x}))$与真实查询$\frac{1}{n}\sum_{i=1}^n f(\mathbf{x}_i)$也一定很接近, 而$\mathbb E_{\mathbf{x}\sim u}(f(\mathbf{x}))$可以在合成数据库上很容易地估计出来, 这就保证了对于一般光滑查询的精确性. 在这个方法中, 只有选择$u$的过程由于需要与原始数据的查询基比对用到了原始数据信息, 这一步用简单的 Laplace 机制就能保证隐私, 后续的处理过程由于命题\ref{prop:后处理隐私不变}, 无需再增加噪音. 对于连续取值的数据域$\mathcal{X}$, $u$的计算无法达到高效, 但我们可以对$\mathcal{X}$进行离散化, 此时$u$成为一个向量, 转记为$\mathbf{u}$, 则计算离散数据域上$\mathbf{u}$的过程可以形式化成一个有穷约束的$l_1$优化问题, 进而通过线性规划来解决. 这样, 一个针对光滑查询的规模指数大、对查询有精确性保证、高效、输出合成数据库的隐私算法也就呼之欲出了. 
+
+我们正式地给出三角机制的过程(算法\ref{alg:三角机制I}), 并对算法\ref{alg:三角机制I}进行详细的分析. 算法第\ref{alg:line:原始数据离散化:begin}至第\ref{alg:line:原始数据离散化:end}行到原始数据$D$进行了离散化, 这是为了在第\ref{alg:line:线性规划}行选择$\mathbf{u}$时进行比对. 第\ref{alg:line:计算原始数据查询基结果}行对于给定的一个查询基$\phi_{\mathbf{r}}$($\mathbf{r}$由第\ref{alg:line:查询基表示}行表示), 计算了用来与$\mathbb E_{\mathbf{x}\sim \mathbf{u}}(\phi_{\mathbf{r}}(\mathbf{x}))$比对的原始数据查询结果, 紧接着第\ref{alg:line:对查询基结果增加噪音}行使用 Laplace 机制对这些查询结果添加扰动. 第\ref{alg:line:LP编码离散化}行的离散化保证了第\ref{alg:line:线性规划}行中的线性规划问题可以被有限编码, 从而得到对应的时间代价, 这一步在实际的计算机实现中被隐性地执行了, 这是因为浮点数本身就是离散的. 第\ref{alg:line:计算格点查询基结果:begin}行至第\ref{alg:line:计算格点查询基结果:end}行计算了每一个$\mathcal{X}$的离散化格点在每一个查询基构成的线性查询上的值, 这一步并没有用到任何查询函数的信息, 因此无需考虑隐私问题, 这里 第\ref{alg:line:LP编码离散化2}行的作用与\ref{alg:line:LP编码离散化}相同, 此处不表. 最后我们在第\ref{alg:line:线性规划}行中求解$\mathbf{u}$, 并在$A^d$中抽取格点作为合成数据库.
+
+\begin{algorithm}[hbtp]
+\caption{三角机制 I}\label{alg:三角机制I}
+\begin{algorithmic}[1]
+  \REQUIRE 数据库$D \in \left([-1,1]^d \right)^n$, 隐私参数$\epsilon > 0$, 查询光滑阶数$K\in\mathbb{N}$.
+  \ENSURE 合成数据库 $\hat{D} \in \left([-1,1]^d \right)^m$.
+  \NOTATION $\mathcal{T}_{t}^d = \{0,1,\ldots,t-1\}^d, a_k = \frac{2k+1-N}{N}, A = \{a_k\colon k=0,1,\ldots, N-1\}, \mathcal{L} = \left\{\frac{i}{L}\colon i=-L, -L+1, \ldots, L-1, L\right\}, \mathbf{x} \triangleq (x_1, \cdots, x_d), \theta_i(\mathbf{x}) \triangleq \arccos(x_i)$. 
+  \STATE 令 $t \leftarrow \left\lceil n^{\frac{1}{2d+K}} \right\rceil$,
+   $N\leftarrow\left\lceil n^\frac{K}{2d+K}\right\rceil$, $m\leftarrow\left\lceil n^{1+\frac{K+1}{2d+K}}\right\rceil$,
+   $L\leftarrow\left\lceil n^{\frac{d+K}{2d+K}}\right\rceil$ \label{alg:line:三角机制I参数设定}
+  \STATE 初始化: $D' \leftarrow \emptyset$, $\tilde{D} \leftarrow \emptyset$, $\mathbf{u} \leftarrow \mathbf{0}_{N^d}$ \label{alg:line:初始化}
+
+  \FORALL{$\mathbf{z}=(z_1,\ldots,z_d) \in D$} \label{alg:line:原始数据离散化:begin}
+    \STATE $x_i \leftarrow \arg\min_{a\in A}|z_i-a|$, $i=1,\ldots,d$
+    \STATE 将 $\mathbf{x}=(x_1,\ldots,x_d)$ 添加到 $D'$ 中
+  \ENDFOR \label{alg:line:原始数据离散化:end}
+
+  \FORALL{$\mathbf{r} = (r_1,\ldots,r_d) \in \mathcal{T}_{t}^d$} \label{alg:line:查询基表示}
+    \STATE $b_{\mathbf{r}} \leftarrow \frac{1}{n} \sum_{\mathbf{x}\in D'}\cos\left(r_1 \theta_1(\mathbf{x}) \right)\ldots \cos \left(r_d \theta_d(\mathbf{x}) \right)$ \label{alg:line:计算原始数据查询基结果}
+    \STATE $\hat{b}_{\mathbf{r}} \leftarrow b_{\mathbf{r}} + \mathrm{Lap}\left(\frac{t^d}{n \epsilon}\right)$ \label{alg:line:对查询基结果增加噪音}
+    \STATE {$\hat{b}'_{\mathbf{r}} \leftarrow
+      \arg\min_{l\in \mathcal{L}}\left|\hat{b}_{\mathbf{r}}-l\right|$} \label{alg:line:LP编码离散化}
+  \ENDFOR
+
+  \FORALL{$\mathbf{k} = (k_1,\ldots,k_d) \in \mathcal{T}_{N}^d$} \label{alg:line:计算格点查询基结果:begin}
+    \FORALL{$\mathbf{r} = (r_1,\ldots,r_d) \in \mathcal{T}_{t}^d$}
+      \STATE $W_{\mathbf{rk}} \leftarrow \cos \left(r_1 \arccos(a_{k_1}) \right)\ldots \cos \left(r_d \arccos(a_{k_d}) \right)$ \label{alg:line:计算格点查询基结果}
+      \STATE $W'_{\mathbf{rk}} \leftarrow\arg\min_{l\in \mathcal{L}}|W_{\mathbf{rk}}-l|$ \label{alg:line:LP编码离散化2}
+    \ENDFOR
+  \ENDFOR \label{alg:line:计算格点查询基结果:end}
+  
+  \STATE $\hat{\mathbf{b}'} \leftarrow \left(\hat{b}'_{\mathbf{r}}\right)_{\|\mathbf{r}\|_{\infty}
+  \le t-1}$
+
+  \STATE $W' \leftarrow \left(W'_{\mathbf{rk}}\right)_{\|\mathbf{r}\|_{\infty} \le t-1,
+  \|\mathbf{k}\|_{\infty} \le N-1}$
+  \STATE 求解以下线性规划问题: 
+  \begin{align*}
+    \min_{\mathbf{u}} \left\| W'\mathbf{u} - \hat{\mathbf{b}}'\right\|_{1}, \\
+    \text{s.t.}\, \mathbf{u} \succeq 0,\, \|\mathbf{u}\|_1 =1,
+  \end{align*}
+  记最优解为$\mathbf{u}^*$($\mathbf{u}^*$是$A^d$上的一个概率分布) \label{alg:line:线性规划}
+  \STATE 按照分布$\mathbf{u}^*$在$A^d$中抽取$m$个数据格点, 记为$\hat{D}$ \label{alg:line:生成合成数据库}
+  \RETURN $\hat{D}$
+\end{algorithmic}
+\end{algorithm}
+
+最后我们给出本文主要的理论结果(定理\ref{thm:epsilon_差分隐私机制}), 在证明定理前, 先回顾概率论的一些经典结果, 我们将在定理证明中频繁用到.
+
+\begin{thm}[Chernoff 界定理, \parencite{chernoff1952measure}]
+  记$X_1, X_2, \dots, X_n$为独立的随机变量, 且$X_i \in [0, 1]$, 令$p_i = \mathbb EX_i$, 并记$p = \frac{1}{n}\sum_{i=1}^n p_i$, 则
+  \[
+    \mathbb P\left(\frac{1}{n}\sum_{i=1}^n \ge p + \delta \right) \le \exp\left(-n D_B(p+\delta\|p)\right),
+  \]
+  其中$D_B(p\|q) \triangleq p\log\frac{p}{q} + (1-p)\log\frac{1-p}{1-q}$为随机变量$P$关于$Q$的信息增益(定义\ref{defn:信息增益}), 这里$P\sim \mathrm{Bernoulli}(p), Q\sim\mathrm{Bernoulli}(q)$.
+\end{thm}
+
+\begin{thm}[三角机制(Trigonometric Mechanism) I的性质]\label{thm:epsilon_差分隐私机制}
+  考虑查询集合
+  \[
+    Q_{C_B^K} \triangleq \left\{q_f(D) = \frac{1}{n} \sum_{\mathbf{x} \in D} f(\mathbf{x})\colon f \in C_B^K \right\},
+  \]
+  其中$k\in\mathbb N$, $B > 0$. 则对任意$\epsilon > 0$, 算法\ref{alg:三角机制I}描述的三角机制$\mathcal{M}$满足:
+  
+  1) $\mathcal{M}$保证$\epsilon$-差分隐私.
+  
+  2) 存在一个常数$c > 0$, 对任意$\beta\ge c\cdot \exp\left(-n^{\frac{1}{2d+K}}\right)$, $\mathcal{M}$保证$(\alpha, \beta)$-精确性, 其中$\alpha=O \left(n^{-\frac{K}{2d+K}}/\epsilon\right)$, 且记法中的隐含常数仅与$d, K, B$有关.
+  
+  3) 算法的运行时间为 $O\left(n^{\frac{3dK+5d}{4d+2K}}\right)$, 且时间瓶颈为第\ref{alg:line:线性规划}行的线性规划算法.
+  
+  4) 输出的合成数据库的大小为$O\left(n^{1+\frac{K+1}{2d+K}}\right)$.
+\end{thm}
+\begin{proof}
+首先我们定义以下在证明中频繁使用的记法, 证明中提及的算法如未特殊说明, 均指算法\ref{alg:三角机制I}. 记原始数据集
+\[
+D = \left(\mathbf{z}^{(1)},\mathbf{z}^{(2)}, \cdots, \mathbf{z}^{(n)}\right).
+\]
+记算法第\ref{alg:line:原始数据离散化:begin}行至第\ref{alg:line:原始数据离散化:end}行输出的离散化数据库
+\[
+D' = \left(\mathbf{x}^{(1)}, \mathbf{x}^{(2)}, \cdots, \mathbf{x}^{(n)}\right).
+\]
+并记算法输出的合成数据库
+\[
+\hat{D} = \left(\mathbf{y}^{(1)}, \mathbf{y}^{(2)}, \cdots,\mathbf{y}^{(m)}\right).
+\]
+令 $\mathbf{b} = (b_{\mathbf{r}})_{\|\mathbf{r}\|_{\infty} \le t-1}$ 为 $t^d$ 维向量, 其中 $b_{\mathbf{r}}$ 如算法第\ref{alg:line:计算原始数据查询基结果}行定义. 类似地, 定义 $\hat{\mathbf{b}}= \left(\hat{b}_{\mathbf{r}}\right)_{\|\mathbf{r}\|_{\infty}
+\le t-1}, W = (W_{\mathbf{rk}})_{\|\mathbf{r}\|_{\infty} \le t-1,
+\|\mathbf{k}\|_{\infty} \le N-1}$, 其中 $\hat{b}_{\mathbf{r}}$ 及 $W_{\mathbf{rk}}$
+分别如算法第\ref{alg:line:对查询基结果增加噪音}行及第\ref{alg:line:计算格点查询基结果}行定义. 令$\boldsymbol{\Delta} = \hat{\mathbf{b}} - \mathbf{b}$ 为 $t^d$ 维 Laplace 噪音, 其中 $\hat{\mathbf{b}}$ 如算法第\ref{alg:line:对查询基结果增加噪音}定义. 最后令
+$\tilde{\mathbf{b}} = (\tilde{b}_{\mathbf{r}})_{\|\mathbf{r}\|_{\infty} \le t-1}$, 其中
+\[
+\tilde{b}_{\mathbf{r}} = \frac{1}{m} \sum_{\mathbf{y}\in \hat{D}}\cos
+\left(r_1 \theta_1(\mathbf{y}) \right)\ldots \cos \left(r_d \theta_d(\mathbf{y}) \right).
+\]
+
+现在我们分别证明定理中的四个结果.
+
+1) 隐私性
+
+机制$\mathcal{M}$保证$\epsilon$-差分隐私是显然的. 注意到在$\mathcal{M}$输出的合成数据库$\hat{D}$包含的信息中, 只有$\hat{\mathbf{b}}$与隐私数据集有关, 其余信息都是公开可得的格点与基函数. 根据命题\ref{defn:epsilon,delta差分隐私}, 我们只需证明$\hat{\mathbf{b}}$的计算过程保证$\epsilon$-差分隐私, 而这一点由命题\ref{prop:Laplace 机制 II}立得.
+
+2) 精确性
+
+记 $\boldsymbol {\theta} = (\theta_1,\ldots, \theta_d)$. 对任意 $f(\mathbf{x})\in C_B^K$, 其中 $\mathbf{x}\in [-1,1]^d$, 令$g_f(\boldsymbol {\theta}) \triangleq f(\cos \theta_1,\ldots, \cos \theta_d)$. 记 $\mathbf{c}=(c_{r_1,\ldots,r_d})_{\|\mathbf{r}\|_{\infty} \le t-1}$, 则 $\mathbf{c}$ 是一个 $t^d$ 维向量, 再令
+\[
+h_f^t(\mathbf{c}, \boldsymbol {\theta})\triangleq\sum_{0\le r_{1},\dots,r_{d}\le t-1} c_{r_{1},\dots,r_{d}}\cos (r_1 \theta_1)\cdots \cos (r_d \theta_d).
+\]
+现在, 给定常数 $M$ (我们稍后将介绍如何选择 $M$), 使用一个关于 Jackson 核函数的逼近论结果\parencite{temli︠a︡kov1994approximation}, 令
+\[
+\begin{split}
+	\mathbf{c}^* &\triangleq \arg\inf_{\|\mathbf{c}\|_{\infty}\le M}\sup_{\boldsymbol{\theta} \in [-\pi, \pi]^d} \left|h_f^{t}(\mathbf{c}, \boldsymbol {\theta})-g_f(\boldsymbol{\theta}) \right|, \\
+	h_f^{M,t}(\boldsymbol{\theta}) &\triangleq \sum_{0\le r_{1},\dots,r_{d}\le t-1} c^*_{r_{1},\dots,r_{d}}\cos (r_1 \theta_1)\ldots \cos (r_d \theta_d).
+\end{split}
+\]
+从而, $h_f^{M,t}$ 是 $g_f$ 的最优 $t$阶小系数逼近(small coefficient approximation).
+
+现在, 对任意 $\mathbf{x} = (x_1,\ldots,x_d) \in [-1,1]^d$, 令$\boldsymbol {\theta}(\mathbf{x})\triangleq (\arccos x_1,\ldots, \arccos x_d)$, 我们对$\mathcal{M}$的误差进行分解:
+\begin{align}\label{eq:误差分解1}
+		& \quad \left|q_f(\hat{D}) - q_f(D) \right|
+		= \left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}}f(\mathbf{y})-
+		    \frac{1}{n}\sum_{\mathbf{z}\in D}f(\mathbf{z}) \right| \nonumber \\
+		& \le \left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}}f(\mathbf{y}) -  \frac{1}{m}\sum_{\mathbf{y}\in \hat{D}} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{y}) \right) \right|  + \left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{y}) \right) -  \frac{1}{n}\sum_{\mathbf{x}\in D'} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{x}) \right) \right|  \nonumber\\
+		&\quad+ \left|\frac{1}{n}\sum_{\mathbf{x}\in D'} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{x}) \right) - \frac{1}{n}\sum_{\mathbf{x}\in D'} f(\mathbf{x})  \right| + \left|\frac{1}{n}\sum_{\mathbf{x}\in D'} f(\mathbf{x}) - \frac{1}{n}\sum_{\mathbf{z}\in D} f(\mathbf{z}) \right|.
+\end{align}
+
+进一步分解\eqref{eq:误差分解1}最后一行的第二项:
+\begin{align}
+  &\left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{y}) \right) -  \frac{1}{n}\sum_{\mathbf{x}\in D'} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{x}) \right) \right| \nonumber\\
+  = & \left|\mathbf{c}^*\cdot(\tilde{\mathbf{b}} - \mathbf{b}) \right| \leq
+  \left(\|\tilde{\mathbf{b}}-\hat{\mathbf{b}}\|_{1} + \|\boldsymbol{\Delta}\|_{1}\right)
+  \|\mathbf{c}^*\|_{\infty} \nonumber\\
+  \leq &\left(\|\tilde{\mathbf{b}}-W\mathbf{u}^*\|_{1} +
+  \|W\mathbf{u}^*-W'\mathbf{u}^*\|_{1} +\|W'\mathbf{u}^*-\hat{\mathbf{b}}'\|_{1} + \|\hat{\mathbf{b}}' - \hat{\mathbf{b}}\|_{1}
+  + \|\boldsymbol{\Delta}\|_{1} \right)\|\mathbf{c}^*\|_{\infty} \nonumber \\
+  \leq &\left(\|\tilde{\mathbf{b}}-W\mathbf{u}^*\|_{1} +
+  \|(W-W')\mathbf{u}^*\|_{1} + \|W\mathbf{u}'-\hat{\mathbf{b}}\|_{1}
+  \right.\nonumber \\
+  &+\left. \|(W-W')\mathbf{u}'\|_{1}+2\|\hat{\mathbf{b}}' - \hat{\mathbf{b}}\|_{1}
+  + \|\boldsymbol{\Delta}\|_{1} \right)\|\mathbf{c}^*\|_{\infty} \label{eq:误差分解2倒数第二个不等式} \\
+  \leq & \left(\|\tilde{\mathbf{b}}-W\mathbf{u}^*\|_{1} + \frac{4t^d}{L} +
+  4\|\boldsymbol{\Delta}\|_{1} \right)\|\mathbf{c}^*\|_{\infty}, \label{eq:误差分解2}
+\end{align}
+其中 $\mathbf{u}'$ 是 $D'$ 上的均匀分布, 并且, 由$\|W'\mathbf{u}^*-\hat{\mathbf{b}}'\|_{1} \leq \|W'\mathbf{u}'-\hat{\mathbf{b}}'\|_{1}$,
+知不等式\eqref{eq:误差分解2倒数第二个不等式}成立; 由
+\begin{equation*}
+  \|\hat{\mathbf{b}}'-\hat{\mathbf{b}}\|_{1} \leq \frac{t^d}{L} +\|\boldsymbol{\Delta}\|_1,
+\end{equation*}
+以及由$W\mathbf{u}' = \mathbf{b}$推出的不等式
+\[
+\|W\mathbf{u}'-\hat{\mathbf{b}}\|_{1}\leq  \|W\mathbf{u}'-\mathbf{b}\|_{1} +
+\|\boldsymbol{\Delta}\|_{1}=\|\boldsymbol{\Delta}\|_{1},
+\]
+知不等式\eqref{eq:误差分解2}中成立.
+
+现在我们定义
+\begin{equation}\label{eq:误差项定义}
+\begin{split}
+\eta_d &\triangleq \left|\frac{1}{n}\sum_{\mathbf{x}\in D'}f(\mathbf{x}) -
+\frac{1}{n}\sum_{\mathbf{z}\in D}f(\mathbf{z}) \right|,\\
+\eta_n &\triangleq 4\|\boldsymbol{\Delta}\|_{1}\|\mathbf{c}^*\|_{\infty},\\
+\eta_a &\triangleq \left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}}f(\mathbf{y}) -  \frac{1}{m}\sum_{\mathbf{y}\in \hat{D}} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{y}) \right) \right| + \left|\frac{1}{n}\sum_{\mathbf{x}\in D'} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{x}) \right) - \frac{1}{n}\sum_{\mathbf{x}\in D'} f(\mathbf{x})  \right|,\\
+\eta_s &\triangleq \|\tilde{\mathbf{b}}-W\mathbf{u}^*\|_{1}\|\mathbf{c}^*\|_{\infty},\\
+\eta_r &\triangleq \frac{4t^d}{L}\|\mathbf{c}^*\|_{\infty},
+\end{split}
+\end{equation}
+其中 $\eta_d$是离散化误差, $\eta_n$是隐私噪音误差, $\eta_a$是逼近误差, $\eta_s$是合成数据库抽样误差, $\eta_r$是线性规划的约化误差. 联立\eqref{eq:误差分解1}\eqref{eq:误差分解2}\eqref{eq:误差项定义}, 我们有:
+\[
+  \left|q_f(\hat{D}) - q_f(D) \right| \le \eta_d + \eta_n + \eta_a + \eta_s + \eta_r.
+\]
+
+现在我们只需要对这些误差项分别给出上界阶估计.
+
+\paragraph{离散化误差 $\eta_d$} % (fold)
+\label{par:离散化误差_eta_d_}
+由 $f \in C_B^K$, 其中$K \ge 1$, 知 $f$ 的所有一阶导数有界$B$. 注意到 $[-1,1]^d$ 的离散化精度为 $\frac{1}{N}$, 因此 $D$ 与 $D'$ (注意, 这里$D'$是$D$的离散化, 不指代$D$的相邻数据库) 的距离为 $O(\frac{1}{N})$. 从而
+\[
+\begin{split}
+ \eta_d &= \left|\frac{1}{n}\sum_{\mathbf{x}\in D'}f(\mathbf{x}) -
+\frac{1}{n}\sum_{\mathbf{z}\in D}f(\mathbf{z}) \right| \le \frac{dB}{N} = O \left(n^{-\frac{K}{2d+K}}\right).
+\end{split}
+\]
+% paragraph 离散化误差_eta_d_ (end)
+\paragraph{隐私噪音误差 $\eta_n$} % (fold)
+\label{par:隐私噪音误差_eta_n_}
+令 $M$ 为由 $d$, $K$, $B$ 决定的充分大的常数\footnote{一个充分条件是$M = 2^KB(\pi (K+1))^d$.}, 则 $\|\mathbf{c}^*\|_{\infty} = O(1)$. 由 $\eta_n = \|\boldsymbol{\Delta}\|_1 \cdot \|\mathbf{c}^*\|_{\infty}$, 其中$\boldsymbol{\Delta}$ 是一个包含$t^d$个独立同分布$\mathrm{Lap}\left( \frac{t^d}{n \epsilon} \right)$随机变量的向量, 可知我们只需考虑$\|\boldsymbol{\Delta}\|_1$的上界,  而这又等价于估计 $t^d$ 个随机指数分布的$L_1$范数上界. 注意到独立指数分布的和服从 Gamma 分布, 根据 Chernoff 界定理, 我们有
+\begin{equation*}
+  \mathbb{P} \left(\|\boldsymbol{\Delta} \|_{1}\leq \frac{2t^{2d}}{n\epsilon} \right) \geq 1-10e^{-\frac{t^d}{5}}.
+\end{equation*}
+从而, 我们有 $\eta_n  =\|\boldsymbol{\Delta}\|_{1}\|\mathbf{c}^*\|_{\infty}\leq O \left(\frac{t^{2d}}{n\epsilon} \right)$ 以 $1-10e^{-\frac{t^d}{5}}$ 概率成立.
+% paragraph 隐私噪音误差_eta_n_ (end)
+\paragraph{逼近误差 $\eta_a$} % (fold)
+\label{par:逼近误差_eta_a_}
+注意到对任意 $\mathbf{x}$, 我们有$g_f(\boldsymbol{\theta}(\mathbf{x}))=f(\mathbf{x})$, 从而
+\begin{align*}
+\eta_a &= \left|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}}f(\mathbf{y}) -  \frac{1}{m}\sum_{\mathbf{y}\in \hat{D}} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{y}) \right) \right| \nonumber + \left|\frac{1}{n}\sum_{\mathbf{x}\in D'} h_f^{M,t}\left( \boldsymbol{\theta}(\mathbf{x}) \right) - \frac{1}{n}\sum_{\mathbf{x}\in D'} f(\mathbf{x})  \right|\\
+& \le 2 \big \|g_f - h_f^{M,t} \big \|_{[-\pi,\pi]^d}
+\end{align*}
+根据\parencite{wang2013efficient}中的定理4.1, 对任意$K,d,B$, 存在 $M$ 使得对任意 $f \in C_B^K$
+\[
+\|g_f - h_f^{M,t} \|_{[-\pi,\pi]^d} \le O \left(\frac{1}{t^{K+1}}\right).
+\]
+于是 $\eta_p \leq O \left(\frac{1}{t^{K+1}} \right)$.
+% paragraph 逼近误差_eta_a_ (end)
+\paragraph{合成数据库抽样误差 $\eta_s$} % (fold)
+\label{par:合成数据库抽样误差_eta_s_}
+令 $W_{\mathbf{r}}$ 为 $W$ 中由 $\mathbf{r}$ 索引的行向量, 注意到 $-1 \le W_{\mathbf{rk}} \le 1$. 从而对每一个 $\mathbf{r}$, 任给定 $\tau>0$, 由Chernoff界定理:
+\[
+\mathbb{P} \left( |\tilde{b}_{\mathbf{r}} - W_{\mathbf{r}}u^*| \ge \tau \right) \le 2 e^{-\frac{m \tau^2}{2}},
+\]
+注意到 $\tilde {b}_{\mathbf{r}}$ 是 $m$ 个 独立同分布的样本平均, 而$Wu^*$是期望, 从而
+\[
+\mathbb{P} \left( \|\tilde{\mathbf{b}} - Wu^* \|_{\infty} \ge \tau \right) \le 2t^d e^{-\frac{m \tau^2}{2}},
+\]
+进而
+\[
+\mathbb{P} \left( \|\tilde{\mathbf{b}} - Wu^* \|_{1} \ge t^d \tau \right) \le 2t^d e^{-\frac{m \tau^2}{2}}.
+\]
+
+选择 $\tau$ 使得 $2t^d e^{-\frac{m \tau^2}{2}} = e^{-t}$, 则下式以 $1- e^{-t}$ 概率成立:
+\[
+\|\tilde{\mathbf{b}} - Wu^* \|_{1} \le O \left(\frac{t^{d+1/2}}{\sqrt{m}} \right).
+\]
+% paragraph 合成数据库抽样误差_eta_s_ (end)
+\paragraph{约化误差 $\eta_r$} % (fold)
+\label{par:约化误差_eta_r_}
+由于 $\|\mathbf{c}^*\|_{\infty}$ 有界, 知
+\[
+\eta_r \le O \left(\frac{t^d}{L} \right).
+\]
+% paragraph 约化误差_eta_r_ (end)
+\paragraph{综合} % (fold)
+\label{par:综合}
+综合以上五类误差, 知$\mathcal{M}$的误差以
+$1-e^{-t}-10e^{-\frac{t^d}{5}}$概率满足:
+\begin{align} \label{eq:机制误差}
+  \bigg|\frac{1}{m}\sum_{\mathbf{y}\in \hat{D}}&f(\mathbf{y})-
+  \frac{1}{n}\sum_{\mathbf{z}\in D}f(\mathbf{z}) \bigg| \leq O \left(\frac{1}{N} + \frac{1}{t^{K+1}} + \frac{t^{2d}}{n\epsilon}
+  + \frac{t^{d+\frac{1}{2}}}{\sqrt{m}} +\frac{t^d}{L}\right).
+\end{align}
+
+注意到算法第\ref{alg:line:三角机制I参数设定}行中的参数设定:
+\begin{align*}
+t=\left\lceil n^{\frac{1}{2d+K}} \right\rceil,\, N=\left\lceil n^\frac{K}{2d+K} \right\rceil, m=\left\lceil n^{1+\frac{K+1}{2d+K}} \right\rceil,\, L=\left\lceil n^{\frac{d+K}{2d+K}} \right\rceil.
+\end{align*}
+代入知精确性命题成立.
+% paragraph 综合 (end)
+
+3) 运行时间
+
+注意到机制中的时间瓶颈在于第\ref{alg:line:线性规划}行的线性规划\footnote{线性规划的时间复杂性分析认为所有算术运算时间代价为$O(1)$, 这里讨论的时间代价沿用这个观点.}, 我们将第\ref{alg:line:线性规划}行的优化问题改写成标准形式:
+\begin{align} \label{eq:LP问题}
+  \max_{\overline{\mathbf{x}}} \quad&\overline{\mathbf{c}}^T \overline{\mathbf{x}},\\
+  \text{s.t.} \quad  \overline{A} \overline{\mathbf{x}} &= \overline{\mathbf{b}}, \nonumber\\
+                     \overline{\mathbf{x}} &\succeq \mathbf{0},\nonumber
+\end{align}
+其中
+\begin{align*}
+  &\overline{A} =
+  \begin{pmatrix}
+    L\cdot W' & L\cdot I_{t^d} & -L\cdot I_{t^d} \\
+    \mathbf{1}_{N^d}^T & 0 & 0
+  \end{pmatrix}, 
+  \overline{\mathbf{b}} = 
+  \begin{pmatrix}
+    L \cdot\hat{\mathbf{b}}' \\ 1
+  \end{pmatrix}, \quad
+  \overline{\mathbf{c}} =
+  \begin{pmatrix}
+    \mathbf{0} \\ \mathbf{1}_{t^d} \\ \mathbf{1}_{t^d}\\
+  \end{pmatrix}, \quad
+  \overline{\mathbf{x}} =
+  \begin{pmatrix}
+    \mathbf{u} \\ \mathbf{v} \\ \mathbf{w}
+  \end{pmatrix},
+\end{align*}
+
+这里 $\overline{A}$ 是一个 $\overline{m}\times\overline{n}$ 矩阵, 且 $\overline{m}=t^d+1, \overline{n}=N^d+2t^d$. 
+注意到
+
+i)  $W'$ 的每一个元素都在 $[-1,1]$ 中;
+
+ii) $\hat{\mathbf{b}}'$ 的每一个元素都在 $[-1,1]$ 中;
+
+iii) $W', \hat{b}'$ 的所有元素按照$1/L$精度约化.
+
+因此我们可以将原问题化简为 \eqref{eq:LP问题} 定义的线性规划问题, 其中 $\overline{A}$, $\overline{b}$, $\overline{c}$ 都是整数并且以$L$为上界.
+
+对于线性规划求解方法中的内点法, 一个经典的最坏时间代价分析为 $O(\overline{n}^3 \tilde {L})$, 其中 $\overline n$ 是变量个数 $\tilde L$ 问题编码长度. 我们使用 \parencite{Anstreicher:1999} 中给出的更为精细的上界$O(\frac{\overline{n}^{1.5}\overline{m}^{1.5}}{\ln \overline{m}}
+\overline{L})$, 其中问题规模$\overline{L}$ 是由下式定义的\parencite{Monteiro:1989},
+\begin{align*}
+  \overline{L} = &\left\lceil\log(1+|\det(\overline{A}_{\mathrm{max}})|)\right\rceil
+  + \left\lceil\log(1+\|\overline{\mathbf{c}}\|_{\infty})\right\rceil  +\left\lceil\log(1+\|\overline{\mathbf{b}}\|_{\infty})\right\rceil
+  + \left\lceil\log(\overline{m}+\overline{n})\right\rceil,
+\end{align*}
+其中
+\begin{equation*}
+  \overline{A}_{\mathrm{max}} = \arg\max_{\text{$X$是$\overline{A}$的子方阵}} \left|\det(X)\right|.
+\end{equation*}
+
+在线性规划问题\eqref{eq:LP问题}中, 约束的个数通常远小于变量的个数, 
+即 $\overline{m}<\overline{n}$, 从而 $\overline{A}_{\mathrm{max}}$ 的大小至多是 $\overline{m}\times\overline{m}$. 于是, 
+\[
+|\det(\overline{A}_{\mathrm{max}})|\le \overline{m}!L^{\overline{m}},
+\]
+以及
+\[
+\overline{L} = O(\overline{m}(\log \overline{m}+ \log L) + \log \overline{n}).
+\]
+
+现在给定 $\overline{m} = O\left(t^d\right), \overline{n} = O\left(N^d\right)$, 代入可得
+\[
+O \left(\frac{\overline{n}^{1.5}\overline{m}^{1.5}}{\ln \overline{m}}\overline{L} \right) = O\left(N^{1.5d}t^{2.5d}\right)
+=O \left(n^{\frac{3dK+5d}{4d+2K}}\right).
+\]
+
+4) 合成数据库的大小
+
+合成数据库的大小由算法第\ref{alg:line:三角机制I参数设定}行给定.
+\end{proof}
+算法\ref{alg:三角机制I}的性能依赖于输入的光滑阶数$K$, 为此我们给出算法的性能指标与光滑阶数$K$的关系. 由表\ref{tab:算法性能指标与光滑阶数关系}, 当光滑阶数$K = 1$时, 算法的精确性最差. 但随着$K$的增加, 算法的精确性由$O\left(n^{-\frac{1}{2d+1}}\right)$改善到接近$O(n^{-1})$, 对于确定的维度$d$, 算法的时间代价关于数据库的规模$n$保持多项式关系. 注意到我们选取了$K = 2d$作为一个中间情形, 此时精确性与抽样误差具有相同的数量级, 当$K$继续增大时, 为了保证更高的精确性, 算法需要更大的合成数据库与更长的运行时间. 由于算法在最好的情形下也需要$O(n^2)$时间, 在实际应用中仍然不够高效, 我们将在\ref{sec:使用隐私主成分分析改进运行时间}一节中将会提出显著改进算法运行时间的一些方法. 
+\renewcommand{\arraystretch}{1.5}
+\begin{table}[hbtp]\centering
+  \caption{三角机制 I性能指标与光滑阶数$K$的关系}\label{tab:算法性能指标与光滑阶数关系}
+  \begin{tabular}{c|ccc}
+    \hline
+    光滑阶数$K$ & 精确性$\alpha$ & 时间代价 & 合成数据库大小$m$ \\
+    \hline
+    $K=1$ & $O\left(n^{-\frac{1}{2d+1}}\right)$ & $O(n^2)$
+    & $O\left(n^{1+\frac{2}{2d+1}}\right)$ \\
+    $K=2d$ & $O\left(n^{-\frac{1}{2}}\right)$ & $O\left(n^{\frac{3}{4}d+\frac{5}{8}}\right)$ & $O\left(n^{\frac{3}{2}+\frac{1}{4d}}\right)$ \\
+    $\frac{K}{d}=M \gg 1$ & $O\left(n^{-(1-\frac{2}{M})}\right)$ & $O\left(n^{d(\frac{3}{2}-\frac{1}{2M})}\right)$ & $O\left(n^{2-\frac{1}{2M}}\right)$ \\
+    \hline
+  \end{tabular}
+\end{table}
+\renewcommand{\arraystretch}{1}
+% section _epsilon_差分隐私机制 (end)
+\section{保证\texorpdfstring{$(\epsilon, \delta)$}{(ϵ, δ)}-差分隐私的三角机制} % (fold)
+\label{sec:_epsilon_delta_差分隐私机制}
+算法\ref{alg:三角机制I}中使用 Laplace 机制来保证差分隐私, 因此, 算法可以很容易扩展到$(\epsilon, \delta)$-差分隐私的情形(算法\ref{alg:三角机制II}). 
+\begin{algorithm}[hbtp]
+\caption{三角机制 II}\label{alg:三角机制II}
+\begin{algorithmic}[1]
+  \REQUIRE 数据库$D \in \left([-1,1]^d \right)^n$, 隐私参数$\epsilon > 0, \delta\in(0, 1]$, 查询光滑阶数$K\in\mathbb{N}$.
+  \ENSURE 合成数据库 $\hat{D} \in \left([-1,1]^d \right)^m$
+  \NOTATION 与算法\ref{alg:三角机制I}相同. 
+  \STATE 令 $t = \left\lceil n^{\frac{2}{3d+2K}}\left(\log\frac{1}{\delta}\right) ^{-\frac{1}{3d+2K}} \right\rceil$,
+   $N = \left\lceil n^{\frac{2K}{3d+2K}}\left(\log\frac{1}{\delta}\right) ^{-\frac{K}{3d+2K}}\right\rceil$, \\ 
+   $m = \left\lceil n^{\frac{4d+4K+2}{3d+2K}}\left(\log\frac{1}{\delta}\right) ^{-\frac{2d+2K+1}{3d+2K}}\right\rceil$,
+   $L=\left\lceil n^{\frac{2d+2K}{3d+2K}}\left(\log\frac{1}{\delta}\right) ^{-\frac{d+K}{3d+2K}}\right\rceil$. \label{alg:line:三角机制II参数设定}
+  \STATE 第2行至第8行与算法\ref{alg:三角机制I}第\ref{alg:line:初始化}行至第\ref{alg:line:计算原始数据查询基结果}行相同.
+  \setalglineno{9}
+    \STATE $\hat{b}_{\mathbf{r}} \leftarrow b_{\mathbf{r}} + \mathrm{Lap}\left(\frac{\sqrt{2t^d\log\frac{1}{\delta}}}{n \epsilon}\right)$. 
+    \STATE 第10行至第21行与算法\ref{alg:三角机制I}第\ref{alg:line:LP编码离散化}行至第\ref{alg:line:生成合成数据库}行相同.
+  \setalglineno{22}
+  \RETURN $\hat{D}$.
+\end{algorithmic}
+\end{algorithm}
+
+对三角机制 II(算法\ref{alg:三角机制II}), 类似定理\ref{thm:epsilon_差分隐私机制}, 我们有以下定理.
+\begin{thm}[三角机制 II的性质]\label{thm:epsilon_delta_差分隐私机制}
+  沿用定理\ref{thm:epsilon_差分隐私机制}的记号, 考虑查询集合$Q_{C_B^K}$. 对任意$\epsilon > 0, \delta\in(0, 1]$, 算法\ref{alg:三角机制II}描述的三角机制$\mathcal{M}$满足:
+  
+  1) $\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私.
+  
+  2) 存在一个常数$c > 0$, 对任意$\beta \ge c \cdot \exp\left(-n^{\frac{2}{3d+2k}}\left(\log\frac{1}{\delta}\right)^{-\frac{1}{3d+2K}}\right)$, $\mathcal{M}$保证$(\alpha, \beta)$-精确性, 其中$\alpha=O \left(n^{-\frac{2K}{3d+2K}}\left(\log\frac{1}{\delta}\right)^{\frac{K}{3d+2K}}/\epsilon \right)$, 且记法中的隐含常数仅与$d, K, B$有关.
+  
+  3) 算法的运行时间为 $O \left(n^{\frac{3dK+5d}{3d+2K}}\left(\log\frac{1}{\delta}\right)^{-\frac{3dK+5d}{6d+4K}}\right)$, 且时间瓶颈为第\ref{alg:line:线性规划}行的线性规划算法.
+  
+  4) 输出的合成数据库的大小为$O \left(n^{\frac{4d+4K+2}{3d+2K}}
+\left(\log\frac{1}{\delta}\right) ^{-\frac{2d+2K+1}{3d+2K}} \right)$.
+\end{thm}
+\begin{proof}
+  证明与定理\ref{thm:epsilon_差分隐私机制}的证明是完全类似的, 我们在算法\ref{alg:三角机制II}第\ref{alg:line:三角机制II参数设定}行设定了与算法\ref{alg:三角机制I}第\ref{alg:line:三角机制I参数设定}不同的参数, 将这些参数以及噪音规模$\frac{\sqrt{2t^d\log\frac{1}{\delta}}}{n \epsilon}$代入到定理\ref{thm:epsilon_差分隐私机制}的证明过程立得. 
+\end{proof}
+% section _epsilon_delta_差分隐私机制 (end)
+\section{与网络机制的性能对比} % (fold)
+\label{sec:与网络机制的性能对比}
+首先, 网络机制(算法\ref{alg:网络机制})的时间代价关于数据规模$n$是超指数的, 而三角机制的时间代价是$n$的多项式, 因此, 三角机制的时间代价占优.
+
+现在我们比较三角机制与网络机制的精确性. 回顾与定理\ref{thm:网络机制精确性阶估计}, 网络机制的精确性有阶估计
+  \begin{equation}\label{eq:网络机制精确性阶估计}
+    \alpha = \tilde{O}\left(\left(\frac{\log|\mathcal{X}|\log|Q|}{n}\right)^{\frac{1}{3}}\right). 
+  \end{equation}
+  注意到网络机制要求数据域$\mathcal{X}$满足$|\mathcal{X}| < \infty$, 但在三角机制中, 数据域为取连续值的$[-1, 1]^d$, 查询类的大小 ------ 光滑函数的个数也是无穷的. 为了对光滑函数查询问题应用网络机制, 我们需要对数据域和光滑函数的值域进行离散化, 容易发现, 对所有光滑函数, 存在$\gamma$精度误差逼近的充要条件是对光滑函数的定义域: 即数据域$[-1, 1]^d$的每一个维度都按照$\Omega\left(\gamma^{-d}\right)$的精度进行离散化, 并且光滑函数的值域按照$\Omega\left(\gamma^{-1}\right)$精度离散化. 这样, 离散化之后的数据域大小为$\Omega\left(\gamma^{-d}\right)$, 查询类$Q$的个数也转变为有穷个. 现在使用网络机制, 我们有以下精确性保证.
+\begin{prop}[网络机制对光滑函数查询的精确性保证]\label{prop:网络机制对光滑函数查询的精确性保证}
+  给定查询类$Q$为定义域与值域都进行了离散化的光滑函数, 数据域$\mathcal{X}$为$[-1, 1]^d$中每一个维度都按照$\Omega(\alpha^{-d})$精度离散化的格点, 则网络机制$\mathcal{M}$保证$(\alpha, \beta)$-精确性, 其中
+  \[
+    \alpha = \tilde{O} \left( n^{-\frac{K}{d+3K}}\right).
+  \]
+\end{prop}
+\begin{proof}
+  由定理\ref{thm:网络机制精确性阶估计}, 我们只需要分析查询类$Q$的大小. 任取 $K \in \mathbb{N}$, 令 $Q_{C_B^K}^{\gamma}$ 为原查询集$Q_{C_K^B}$ 按照定义域与值域分别以$\gamma$为参数离散化后的函数集合, 我们断言, 存在常数$c$, 使得
+  \begin{equation}\label{eq:Q_CBK_gamma大小上界}
+  \log \left|Q_{C_B^K}^{\gamma}\right| \ge c \gamma^{-\frac{d}{K}}.
+  \end{equation}
+  由于 $\gamma$ 为离散化精度, 函数的所有一阶导数都有上界 $B$, 因此离散化对定义域和值域带来的扰动至为 $\gamma$. 从而离散化误差为
+  \[
+  \max \left\{B\gamma, \tilde{O}\left(\left(\frac{\gamma^{-\frac{d}{K}}}{n}\right)^{\frac{1}{3}}\right)\right\}.
+  \]
+令
+\[
+  O(\gamma) = \tilde{O}\left(\left(\frac{\gamma^{-\frac{d}{K}}}{n}\right)^{\frac{1}{3}}\right),
+\]
+于是$\gamma = \tilde{O}\left(n^{-\frac{K}{d + 3K}}\right)$,
+由$|\mathcal{X}| = \gamma^d$, 代入\eqref{eq:网络机制精确性阶估计}立得命题.
+
+现在我们证明\eqref{eq:Q_CBK_gamma大小上界}. 不失一般性地考虑$B=1$的情形, 否则进行伸缩变换使得$B= 1$.
+
+对$\mathbf{x} \in \mathbb{R}^d$定义
+\[
+h(\mathbf{x})= \begin{cases} \exp \left(1-\frac{1}{1-\|\mathbf{x}\|_2^2} \right),& \|\mathbf{x}\|_2 \leq 1, \\ 0,& \text{其他}. \end{cases}
+\]
+
+显然 $h(\mathbf{x})\in C^{\infty}(\mathbb{R}^d)$, 且$h(\mathbf{x}) \in [0,1]$. 对任意非负整数$d$-元组$\mathbf{k}=(k_1,\ldots,k_d)$, 当$\|\mathbf{x}\|\geq 1$时, 有 $D^{\mathbf{k}} h(\mathbf{x})=0$. 由于 $h$ 所有偏导数是连续的且支集有界, 可定义
+\begin{equation*}
+M_K \triangleq \max_{|\mathbf{k}|\leq K}\max_\mathbf{x} |D^{\mathbf{k}} h(\mathbf{x})|.
+\end{equation*}
+由 $K$ 是常数, 知$M_K$也是常数. 令$N_0=1/\alpha$. 不妨设 $N_0$ 是一个整数. 我们将 $[-1,1]^d$ 等度分割成超立方体, 令 $n_0$ 是一个待定的整数. 记 $l = n_0/N_0$ 为超立方体的边长, $m_0 = 1/l$ 为每个维度超立方体的个数, 并记这 $m_0^d$ 个超立方体的中心为 $\mathbf{x}_1,\ldots,\mathbf{x}_{m_0^d}$.
+
+考虑集合
+\begin{align*}
+  \mathcal{F} = \Biggl\{\mathbf{z}=(z_1,\ldots,z_{m_0^d})\colon &z_1 \in \left\{-\frac{N_0-1}{N_0},-\frac{N_0-2}{N_0},\ldots,\frac{N_0-1}{N_0} \right\}, \\
+  &z_i \in \{-1,0,1\},~i=2,3,\ldots,m_0^d \Biggr\}.
+\end{align*}
+显然 $|\mathcal{F}| = (2N_0-1) 3^{m_0^d-1}$. 对任意 $\mathbf{z} \in \mathcal{F}$, 我们构造一个 $K$阶光滑函数 $f_{\mathbf{z}}$ 使得对任意 $\mathbf{z},\mathbf{z}' \in \mathcal{F}$, $f_{\mathbf{z}}$ 和 $f_{\mathbf{z}'}$ 在定义域与值域离散化后仍然不同. 特别地, 只要离散化精度为$\alpha$, 我们希望 $f_\mathbf{z}$ 与 $f_{\mathbf{z}'}$ 是不同的, 如果这一点成立并且与离散化精度无关, 则
+\[
+\log \left|Q_{C_K^B}^{\alpha} \right| \ge \Omega(m_0^d).
+\]
+下面我们证明 $m_0$ 可以达到 $\Omega \left(N_0^{1/K} \right)$. 定义
+\begin{equation*}
+\label{constr}
+f_{\mathbf{z}}(x) = z_1 + \frac{1}{N_0}\sum_{j=2}^{m_0^d} h\left(2(\mathbf{x}-\mathbf{x}_j)/l \right)\cdot z_j.
+\end{equation*}
+
+考察 $f_{\mathbf{z}}$的一些性质: $f_{\mathbf{z}}$ 可以视作对常值函数 $z_1$ 加上一些光滑函数$h_j$的线性组合, 其中\[
+  h_j(\mathbf{x}) = \begin{cases} \exp \left(1-\frac{1}{1-\|\mathbf{x} - \mathbf{x}_j\|_2^2} \right),& \|\mathbf{x} - \mathbf{x}_j \|_2 \leq 1 \\ 0.& \text{其他} \end{cases}
+\]为$h$平移到每一个超立方体的中心$\mathbf{x}_j$的结果. 并且, $\mathbf{x}_j$ 点的扰动受到 $z_j \in \{-1,0,1\}$ ($j=2,3,\ldots,m_0^d$) 的方向控制, 从而扰动规模为 $1/N_0$.
+
+注意到 $h(2(\mathbf{x}-\mathbf{x}_j)/l)$ 的支集为
+\[
+\{\mathbf{x}\in \mathbb{R}^d: \|\mathbf{x}-\mathbf{x}_j\|_2 \leq l/2 \}.
+\]
+对任意 $\mathbf{x}\in \mathbb{R}^d$, 存在至多一个 $j$ 使得 $h(2(\mathbf{x}-\mathbf{x}_j)/l)\neq 0$. 从而对任意固定的 $\mathbf{x}$, \eqref{constr}的求和项中至多一项不为零. 注意到 $\frac{1}{N_0} h\left(2(\mathbf{x}-\mathbf{x}_j)/l \right)\cdot z_j$ 只能为$f_{\mathbf{z}}$的大小提供$1/N_0$的贡献. 因此对不同的 $\mathbf{z}$, $\mathbf{z}'$由某一个离散化精度生成, 则$f_{\mathbf{z}}$ 与 $f_{\mathbf{z}'}$ 总是不同的. 并且, 如果 $|\mathbf{k}| \le K$, 则对所有 $\mathbf{z}$,
+\begin{align*}
+|D^{\mathbf{k}} f_{\mathbf{z}}(\mathbf{x})| &= \left|\frac{1}{N_0}  \sum_{j=2}^{m_0^d} D^{\mathbf{k}} h(2(\mathbf{x}-\mathbf{x}_j)/l) \right|\leq \left(\frac{2}{l} \right)^K M_K/N_0,
+\end{align*}
+由于扰动$h$的支集互不重叠, 为了使 $f_{\mathbf{z}}$的 $K$-范数小于 $1$, 只能
+\begin{equation*}
+\left(\frac{2}{l} \right)^K M_K/N_0 \le 1.
+\end{equation*}
+取$n_0 =  \left\lceil 2M_K^{1/K}N_0^{\frac{K-1}{K}} \right\rceil$, 则上述不等式成立, 从而我们有
+\[
+m_0 = \frac{N_0}{n_0} = \Omega \left(N_0^{1/K} \right). \qedhere
+\]
+\end{proof}
+现在, 对比定理\ref{thm:epsilon_差分隐私机制}与命题\ref{prop:网络机制对光滑函数查询的精确性保证}, 对于高度光滑的函数, 网络机制的精确性至多为$O\left(n^{-\frac{1}{3}}\right)$, 而三角机制的精确性接近$O\left(n^{-1}\right)$, 优于网络机制. 
+
+综上, 三角机制的时间代价远比网络机制低, 对于高度光滑的函数而言, 三角机制的精确性优于网络机制.
+% section 与网络机制的性能对比 (end)
+\section{使用隐私主成分分析改进运行时间} % (fold)
+\label{sec:使用隐私主成分分析改进运行时间}
+回顾\ref{sec:_epsilon_差分隐私机制}一节对时间代价的分析, 当光滑阶数$K$很大时, 算法\ref{alg:三角机制I}的时间代价接近于$n^{\frac{3d}{2}}$, 在实际应用中是非常低效的. 注意到三角机制的时间瓶颈是第\ref{alg:line:线性规划}步的线性规划问题, 而该问题由$O(N^d)$个变量和$O(t^d)$个约束构成, 这里$N^d$是$[-1, 1]^d$离散化格点的个数, $t^d$是三角多项式查询基的个数, 故问题规模随着$d$是指数增长的. 我们考虑舍弃部分精确性的保证, 转而抽取$A^d$的部分格点构成集合$S$, 并要求分布$u$也限制在$S$上, 记$C = |S|$; 类似地, 对于$t^d$个查询基, 我们按照基的次数升序排列, 选择前$R$个查询基参与$u$的选择, 这样我们可以将原规划问题的变量个数由$O(N^d)$降低到$O(C)$, 并将约束个数由$O(t^d)$降低到$O(R)$. 
+
+对于子集$S$的选择, 最简单的方法是在$A^d$中随机抽取$C$个数据点, 但是, 由于$A^d$中有$N^d$个数据点, 对于一般的参数设定, 如$N = 100, d= 20, C = 10,000$, 则$S$占$A^d$的比例为$10^{-35}$, 由于$S$占比太低, 很容易出现$S$的分布与真实数据集$D$相差甚远, 这样, 由于格点集$S$不具有代表性, 最后合成数据库的分布$\mathbf{u}$也不可能与$D$接近, 从而无法取得理想的精确性. 因此, 给定数据集$D$, 一个合适的选择$S$的过程$\mathcal{M}$应该满足:
+
+1) $\mathcal{M}$保证差分隐私.
+
+2) $|S|$尽可能地小.
+
+3) 对任意$\mathbf{x}\in D$, 存在$\mathbf{y}\in S$, $\|\mathbf{x} - \mathbf{y}\|\le\alpha$.
+
+过程$\mathcal{M}$与寻找$\alpha$-网络(定义\ref{defn:alpha-网络})有些相似. 事实上, 如果我们将定义\ref{defn:alpha-网络}中的$f(D) - f(D')$扩充为一个二元函数$g(D, D') = \left\|\left(\|\mathbf{x}_i - \mathbf{x}'_j\|_2\right)_{ij}\right\|_F$, 那么机制$\mathcal{M}$实际上就是由$\mathcal{X}^{\mathbb N}$到$\{g\}$的$\alpha$-网络的一个保证隐私的映射. 在不考虑隐私的情形, 可以简单地令$S = D$, 但在差分隐私的要求下, 情况是复杂的. 本节我们采用隐私主成分分析获得一个低维空间的椭球, 椭球的各方向为保证隐私的特征向量估计, 轴长与保证隐私的特征值估计的平方根成正比. 我们使用修改的隐私子空间迭代算法(Private Subspace Iteration, 算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法})计算这些统计量, 最后我们在椭球中均匀地抽取$C$个数据点作为格点集$S$. 
+
+我们先介绍隐私子空间迭代算法(算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法}, 算法\ref{alg:保证epsilon差分隐私的子空间迭代算法}), 随后证明在特定的情形下, 该算法可以保证$(\epsilon, \delta)$-差分隐私或$\epsilon$-差分隐私(定理\ref{thm:子空间迭代算法的隐私性}), 最后证明了算法关于特征向量、特征值的精确性(定理\ref{thm:特征向量的精确性}与定理\ref{thm:特征值的精确性}). 注意到\parencite{hardt2013robust}仅证明了前$k$个特征向量与算法输出的前$k$-列隐私特征向量各自张成的子空间夹角很小, 这并不意味着迭代算法生成的隐私椭球可以收敛到真实的主成分分析的椭球. 因此, 我们加强了\parencite{hardt2013robust}的结果.
+
+\begin{algorithm}[hbtp]
+	\caption{保证$(\epsilon + \epsilon', \delta)$-差分隐私的隐私子空间迭代算法\parencite{hardt2013robust}.}\label{alg:保证epsilon,delta差分隐私的子空间迭代算法}
+	\begin{algorithmic}[1]
+    \INTERFACE PSIepsdelta$(D, \epsilon, \delta, k, L, \tilde{\mu})$.
+		\REQUIRE 隐私数据库$D \in([-1,1]^d)^n$, 迭代次数$L\in \mathbb{N}$, 输出维度$k$, 隐私参数$\epsilon > 0,  \delta\in(0, 1]$, 对$\overline{D}$的$\epsilon'$-差分隐私估计$\tilde{\mu}$.
+		\ENSURE 前$k$个隐私特征值$\boldsymbol\lambda$, 前$k$个隐私特征列向量$\mathbf{X}^{(L)}$.
+		\NOTATION 记 $\mathrm{GS}$ 为 Gram-Schmidt 正交化程序.
+    \STATE 令$\rho \leftarrow c(d, n, \|\tilde{\mu}\|)$, 其中$c(\cdot, \cdot, \cdot)$如\eqref{eq:PSI噪音常数}定义, 令$\sigma\leftarrow \frac{\rho\sqrt{4kL\log(1/\delta)}}{\epsilon}$ 
+    \STATE 作方差阵$\mathbf{A}\leftarrow\frac{1}{n}\sum_{\mathbf{z}\in D} (\mathbf{z}-\overline{\mathbf{z}})(\mathbf{z}-\overline{\mathbf{z}})^T$, 其中 $\overline{\mathbf{z}}\leftarrow\frac{1}{n}\sum_{\mathbf{z}\in D} \mathbf{z}$ \label{alg:line:PSI_参数设定}
+		\STATE 初始化: $\mathbf{G}^{(0)}\sim N(0,1)^{d\times k}$, $\mathbf{X}^{(0)}\leftarrow \mathrm{GS}(\mathbf{G}^{0})$
+		\FORALL{$l = 1, 2, \dots, L$} \label{alg:line:PSI添加噪音前}
+			\STATE 添加噪音: $\mathbf{W}^{(l)} \leftarrow \mathbf{A}\mathbf{X}^{(l-1)}+\mathbf{G}^{(l)}$, 其中$\mathbf{G}^{(l)}\sim N(0, \sigma^2)^{n\times k}$ \label{alg:line:PSI:添加噪音}
+			\STATE $\mathbf{X}^{(l)} \leftarrow \mathrm{GS}\left(\mathbf{W}^{(l)}\right)$ \label{alg:line:PSI:添加噪音后}
+		\ENDFOR
+    \FORALL{$s = 1, 2, \dots, k$}
+		  \STATE $\hat{\lambda}_s \leftarrow \left\|\mathbf{w}_s^{(L)}\right\|_2$, 其中 $\mathbf{w}_s^{(L)}$ 是 $\mathbf{W}^{(L)}$ 的第$s$列
+    \ENDFOR
+    \STATE 令 $\boldsymbol\lambda \leftarrow \left(\hat{\lambda}_s\right)_{s \le k}$ \label{alg:line:PSI:返回结果前}
+    \RETURN $\boldsymbol\lambda$, $\mathbf{X}^{(L)}$
+	\end{algorithmic}
+\end{algorithm}
+\begin{algorithm}[hbtp]
+	\caption{保证$\epsilon$-差分隐私的隐私子空间迭代算法\parencite{hardt2013robust}}\label{alg:保证epsilon差分隐私的子空间迭代算法}
+	\begin{algorithmic}[1]
+    %% Both the \INTERFACE and \NOTATION is not standard usage of algorithmis pacakge !%%
+    \INTERFACE PSIeps$(D, \epsilon, k, L,  \tilde{\mu})$. 
+		\REQUIRE 隐私数据库$D \in([-1,1]^d)^n$, 迭代次数$L\in \mathbb{N}$, 输出维度$k$, 隐私参数$\epsilon > 0$, 对$\overline{D}$的$\epsilon'$-差分隐私估计$\tilde{\mu}$.
+		\ENSURE 前$k$个隐私特征值$\boldsymbol\lambda$, 前$k$个隐私特征列向量$\mathbf{X}^{(L)}$.
+		\NOTATION 记 $\mathrm{GS}$ 为 Gram-Schmidt 正交化程序.
+		\STATE 令$\rho \leftarrow c(d, n, \|\tilde{\mu}\|)$, 其中$c(\cdot, \cdot, \cdot)$如\eqref{eq:PSI噪音常数}定义, 令 $\sigma\leftarrow \frac{10\rho \sqrt{d}kL}{\epsilon}$
+    \STATE 第\ref{alg:line:PSI_参数设定}至第\ref{alg:line:PSI添加噪音前}行与算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法}第\ref{alg:line:PSI_参数设定}行至第\ref{alg:line:PSI添加噪音前}行相同
+    \setalglineno{5}
+    \STATE 添加噪音: $\mathbf{W}^{(l)} \leftarrow \mathbf{A}\mathbf{X}^{(l-1)}+\mathbf{G}^{(l)}$, 其中$\mathbf{G}^{(l)}\sim \mathrm{Lap}( \sigma)^{n\times k}$ \label{alg:line:PSI:eps:添加噪音}
+    \STATE  第\ref{alg:line:PSI:添加噪音后}行至第\ref{alg:line:PSI:返回结果前}行与算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法}第\ref{alg:line:PSI:添加噪音后}行至第\ref{alg:line:PSI:返回结果前}行相同
+    \setalglineno{12}
+    \RETURN $\boldsymbol\lambda$, $\mathbf{X}^{(L)}$
+	\end{algorithmic}
+\end{algorithm}
+在给出本节理论结果前, 先证明一些引理, 这里我们简记$l_2$范数为$\|\cdot\|$.
+\begin{lem}\label{lem:方差阵敏感性}
+	记数据库的域$\mathcal{X} = [-1,1]^d$, 对相邻数据库 $D, D'$, 记 $|D| = |D'| = n$, 令 $\mathbf{A}(D)=\frac{1}{n}\sum_{\mathbf{z}\in D} (\mathbf{z}-\overline{\mathbf{z}})(\mathbf{z}-\overline{\mathbf{z}})^T$ 为方差阵, 以及$\overline{D} = \frac{1}{n}\sum_{\mathbf{z}}$, 其中$z$为每个观测行向量的转置, 则$\|\mathbf{A}(D) - \mathbf{A}(D')\| \le c\left(n, d, \left\|\overline{D}\right\|\right)$, 其中
+	\begin{equation}\label{eq:PSI噪音常数}
+	  c\left(n, d, \left\|\overline{D}\right\|\right) =  \frac{1}{n} \left( \frac{1}{p} \left(\left\|\overline{D}\right\| + \frac{\sqrt{d}}{n}\right)^2 + pd + 2\sqrt{d}\left\|\overline{D}\right\| + \frac{2d}{n} \right),
+	\end{equation}
+  其中$p = \frac{1}{n} + \frac{(n-1)^2}{n^2}$, 且当$n$充分大时, $c\left(n, d, \left\|\overline{D}\right\|\right) =  \frac{\left(\left\|\overline{D}\right\| + \sqrt{d}\right)^2}{n} + O(n^{-2})$.
+\end{lem}
+\begin{proof}
+  任取相邻数据库$D, D'$, 记$D$与$D'$中相同的观测转置后构成的集合为$C$, 简记求和$\mathbf{S} = \sum_{\mathbf{z}\in C} \mathbf{z}$. 不同的观测转置后分别为$\mathbf{x}\in D, \mathbf{y}\in D'$. 从而
+  \begin{align*}
+    n \mathbf{A}(D) &= \sum_{\mathbf{z}\in C} \left(\mathbf{z} - \frac{1}{n}\mathbf{S} - \frac{1}{n}\mathbf{x}\right)\left(\mathbf{z} - \frac{1}{n}\mathbf{S} - \frac{1}{n}\mathbf{x}\right)^T \\
+    &\quad + \left(\frac{n-1}{n}\mathbf{x} - \frac{1}{n}\mathbf{S}\right)\left(\frac{n-1}{n}\mathbf{x} - \frac{1}{n}\mathbf{S}\right)^T \\
+    &= k(C) + \frac{1}{n}\mathbf{x}\mathbf{x}^T + \frac{(n-1)^2}{n^2}\mathbf{x}\mathbf{x}^T - \frac{n-1}{n^2}\left(\mathbf{S} \mathbf{x}^T + \mathbf{x} \mathbf{S}^T\right),
+  \end{align*}
+  其中$k(\cdot)$是仅与$C$有关的确定的函数. 类似地对$D'$计算$n\mathbf{A}(D')$, 于是
+  \begin{align*}
+    n(\mathbf{A}(D) - \mathbf{A}(D')) &= \left(\frac{1}{n} + \frac{(n-1)^2}{n^2}\right)(\mathbf{x}\mathbf{x}^T - \mathbf{y}\mathbf{y}^T) \\
+    &\quad - \frac{n-1}{n^2}\left(\mathbf{S}(\mathbf{x} - \mathbf{y})^T + (\mathbf{x} - \mathbf{y})\mathbf{S}^T\right).
+  \end{align*}
+  注意到$n(\mathbf{A}(D) - \mathbf{A}(D'))$是对称矩阵, 且作为$(\mathbf{x}, \mathbf{y})$的函数是交替的\footnote{称函数$f(x, y)$是交替的(alternating), 若$f(x, y) + f(y, x) \equiv 0$.}, 于是有$\|n(\mathbf{A}(D) - \mathbf{A}(D'))\| = \max_{\mathbf{z}^T\mathbf{z} = 1} f(\mathbf{z})$, 其中
+  \begin{align*}
+    f(\mathbf{z}) &= n\mathbf{z}^T (\mathbf{A}(D) - \mathbf{A}(D'))\mathbf{z} \\
+    &=\left(\frac{1}{n} + \frac{(n-1)^2}{n^2}\right)\left(\left(\mathbf{x}^T\mathbf{z}\right)^2 - \left(\mathbf{y}^T\mathbf{z}\right)^2\right) - \frac{2(n-1)}{n^2}\left(\left(\mathbf{S}^T\mathbf{z}\right)\cdot \left(\mathbf{x}^T\mathbf{z} - \mathbf{y}^T\mathbf{z}\right)\right) 
+  \end{align*}
+  记$\mathbf{z}^* = \arg\max_{\mathbf{z}^T\mathbf{z} = 1} f(\mathbf{z})$, 注意到$|\mathbf{S}^T\mathbf{z}| \le \|\mathbf{S}\|$, 简记$p = \frac{1}{n} + \frac{(n-1)^2}{n^2}$, $q = \frac{2(n-1)}{n^2}\|\mathbf{S}\|$, $\alpha = \mathbf{x}^T\mathbf{z}^*$, $\beta = \mathbf{y}^T\mathbf{z}^*$, 由于$f(\mathbf{z})$关于$(\mathbf{x}, \mathbf{y})$是交替的, 不失一般性地假设$\alpha \ge \beta$, 注意到$p\in(0, 1], q\in\left[0, 2\sqrt{d}\right), \alpha\in\left[-\sqrt{d}, \sqrt{d}\right], \beta\in\left[-\sqrt{d}, \sqrt{d}\right]$, 于是我们有
+  \begin{align}
+    f(\mathbf{z}^*) &\le p\left(\alpha^2 - \beta^2\right) + q(\alpha - \beta) \le p\left(d - \beta^2\right) + q \left(\sqrt{d} - \beta\right) \nonumber \\
+    &\le \frac{q^2}{4p} + pd + q\sqrt{d}. \label{eq:方差敏感性常数}
+  \end{align}
+  不等式\eqref{eq:方差敏感性常数}中的等号成立当且仅当$\beta = -\frac{q}{2p}$, 这样的$\beta$总是可以取到的. 从而
+  \begin{align*}
+    \|\mathbf{A}(D) - \mathbf{A}(D')\| \le \frac{1}{n} \left(\frac{q^2}{4p} + pd + q\sqrt{d}\right).
+  \end{align*}
+  最后由$\|\mathbf{S}\| = \|n\overline{D} - \mathbf{x}\| \le n\left\|\overline{D}\right\| + \sqrt{d}$, 知$q \le 2\left\|\overline{D}\right\| + \frac{2\sqrt{d}}{n}$, 于是
+  \[
+    \|\mathbf{A}(D) - \mathbf{A}(D')\| \le \frac{1}{n} \left( \frac{1}{p} \left(\left\|\overline{D}\right\| + \frac{\sqrt{d}}{n}\right)^2 + pd + 2\sqrt{d}\left\|\overline{D}\right\| + \frac{2d}{n} \right).
+  \]
+  当$n$充分大时, 有
+  \[
+    \|\mathbf{A}(D) - \mathbf{A}(D')\| \le \frac{\left(\left\|\overline{D}\right\| + \sqrt{d}\right)^2}{n} + O(n^{-2}). \qedhere
+  \]
+\end{proof}
+\begin{lem}\label{lem:子阵范数控制}
+	令 $\mathbf{A}= (a_{ij}) \in \mathbb{R}^{n\times d}$, 记 $\mathbf{A}_{kl} = (a_{ij})_{i\le k, j\le l}$ 为 $\mathbf{A}$ 的$(k, l)$-子矩阵, 其中$k\le n, l \le d$, 则 $\|\mathbf{A}_{kl}\| \le \|\mathbf{A}\|$.
+\end{lem}
+\begin{proof}
+	由 $\|\mathbf{A}\| = \|\mathbf{A}'\|$ 以及归纳法, 只需证明$l = d - 1, k = n$的情形. 记 $\mathbf{A} = (\mathbf{A}_{d-1}, \mathbf{a})$, $\mathbf{z} = (\mathbf{z}_{d-1}, z_d)^T \in \mathbb{R}^d$,  并记 $\lambda_{\max}(\cdot)$ 为最大特征值, 则有
+\begin{align*}
+	\|\mathbf{A}\|^2 &= \lambda_{\max}(\mathbf{A}^T\mathbf{A}) = \max_{\mathbf{z}^T\mathbf{z} = 1} \mathbf{z}^T \mathbf{A}^T\mathbf{A}\mathbf{z} \\
+	&\ge \max_{\mathbf{z}^T\mathbf{z} = 1 } (\mathbf{z}_{d-1}, 0) \mathbf{A}^T\mathbf{A}(\mathbf{z}_{d-1}, 0)^T \\
+	& = \max_{\mathbf{z}_{d-1}^T\mathbf{z}_{d-1} = 1} \mathbf{z}_{d-1}\mathbf{A}_{d-1}^T \mathbf{A}_{d-1}\mathbf{z}_{d-1}^T = \|\mathbf{A}_{d-1}\|^2. \qedhere
+\end{align*}
+\end{proof}
+\begin{lem}[\parencite{hardt2013robust}]\label{lem:高斯凝聚性}
+令 $\mathbf{U} \in \mathbb{R}^{d\times k} $ 为列正交矩阵. 记 $\mathbf{G}^{(1)},...,\mathbf{G}^{(L)} \sim N(0, \sigma^2)^{d\times k}$, 其中 $k \le d$ 并假设 $L\le d$. 令 $\mathbf{G}_s^{(l)}$ 和 $\mathbf{U}_s$ 分别为 $\mathbf{G}^{(l)}$ 及 $\mathbf{U}$ 的 $(d, s)$-子阵, 其中 $s\in[k]$. 则下式以 $1 - o(1)$ 概率成立
+\begin{equation*}
+\max_{l\in[L]} \left\|\mathbf{U}_s^T\mathbf{G}_s^{(l)}\right\|\le O\left(\sigma \sqrt{k\log L}\right),\quad\forall\, s\in[k].
+\end{equation*}
+\end{lem}
+\begin{thm}[子空间迭代算法的隐私性]\label{thm:子空间迭代算法的隐私性}
+  算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法}保证$(\epsilon + \epsilon', \delta)$-差分隐私. 算法\ref{alg:保证epsilon差分隐私的子空间迭代算法}保证$(\epsilon + \epsilon')$-差分隐私.
+\end{thm}
+\begin{proof}
+  由\parencite{hardt2013robust}中的引理3.6以及引理\ref{lem:方差阵敏感性}, 结合组合定理(定理\ref{thm:组合定理I})立得.
+\end{proof}
+下面我们不妨仍记$\epsilon$为定理\ref{thm:子空间迭代算法的隐私性}中的$(\epsilon + \epsilon')$. 在给定的正则条件下, 不考虑隐私的传统子空间迭代可以保证算法输出的向量与特征值以指数速率收敛到真实的特征向量与对应的特征值\parencite{rutishauser1970simultaneous}. 对于隐私传统子空间迭代, 由于涉及到方差阵的矩阵乘法都增加了一定规模的噪音, 因此, 当算法输出的向量、特征值与真实特征向量、特征值的误差接近噪音的规模时, 算法的精确性不可能继续提升, 而是在与噪音相当的水平上浮动, 下面的定理\ref{thm:特征向量的精确性}刻画了隐私子空间迭代的收敛性质. 
+\begin{thm}[特征向量的精确性]\label{thm:特征向量的精确性}
+给定数据库 $D$, 记 $|D| = n$, 记 $\mathbf{A}=\frac{1}{n}\sum_{\mathbf{z}\in D} (\mathbf{z}-\overline{\mathbf{z}})(\mathbf{z}-\overline{\mathbf{z}})^T$ 为方差阵. 记 $\lambda_1\ge\dots\ge\lambda_d$ 为 $A$ 的特征值并记 $\gamma_k = \lambda_k/\lambda_{k+1} - 1$. 令 $\mathbf{U} = (\mathbf{u}_1, \dots, \mathbf{u}_k) \in \mathbb{R}^{d\times k}$, 其中 $\mathbf{u}_1,\ldots,\mathbf{u}_k$ 是 $\mathbf{A}$ 的前 $k$ 个特征向量. 记 $\theta(\mathbf{u}, \mathbf{v})$ 为向量 $\mathbf{u}$ 与 $\mathbf{v}$ 的夹角. 对任意 $k \le d/2$ 及 $L \ge C \frac{\log d}{\min_{s\le k}\gamma_s}$, 其中 $C$ 是一个充分大的常数, 则算法\ref{alg:保证epsilon,delta差分隐私的子空间迭代算法}返回的矩阵 $\mathbf{X}^{(L)} = \left(\mathbf{x}_1^{(L)}, \dots, \mathbf{x}_k^{(L)}\right) \in\mathbb{R}^{d\times k}$ 满足下式对所有$s \le k$ 以 $1 - o(1)$概率成立:
+  	\begin{equation*}
+  		\sin\theta(\mathbf{u}_s, \mathbf{x}_s^{(L)}) \le O\left(\frac{\omega_s d^{\frac{3}{2}}\sqrt{kL\log L\log\bigl(\frac{1}{\delta}\bigr)}}{n\epsilon}\right),
+  	\end{equation*}
+  	其中
+  	\[
+  		\omega_s = \begin{cases}
+  			\frac{1}{\gamma_1\lambda_1} & s = 1,\\
+  \max\left\{\frac{1}{\gamma_s\lambda_s}, \frac{1}{\gamma_{s-1}\lambda_{s-1}}\right\} & 2 \le s \le k.
+  		\end{cases}
+  	\]
+\end{thm}
+\begin{proof}
+  	令 $m = \max_l\|\mathbf{X}^{(l)}\|_\infty$. 考虑谱分解 $\mathbf{A} = \mathbf{Z}\boldsymbol{\Lambda}\mathbf{Z}^{-1}$, 并记 $\boldsymbol{\Lambda} = \begin{pmatrix}
+  		\boldsymbol{\Lambda}_1 & \\
+  		& \boldsymbol{\Lambda}_2
+  	\end{pmatrix}$, 以及 $\mathbf{Z} = \begin{pmatrix}
+  		\mathbf{U}_s & \mathbf{V}_s
+  	\end{pmatrix}$,
+  	 其中 $\boldsymbol{\Lambda}_1 \in \mathbb{R}^{s\times s}, \mathbf{U} \in \mathbb{R}^{d\times s}$. 显然我们有$\mathbf{A} = \mathbf{U}_s\boldsymbol{\Lambda}_1\mathbf{U}_s^T + \mathbf{V}_s\boldsymbol{\Lambda}_2\mathbf{V}_s^T$.
+  令
+  \[
+  \Delta(\mathbf{U}_s) = \max_{l} \left\|\mathbf{U}_s^T\mathbf{G}_s^{(l)}\right\|,\, \Delta(\mathbf{V}_s) = \max_{l} \left\|\mathbf{V}_s^T\mathbf{G}_s^{(l)}\right\|,
+  \]
+  其中 $\mathbf{G}_s^{(l)}$ 是 $\mathbf{G}^{(l)}$ 的$(d, s)$-子矩阵. 由引理\ref{lem:高斯凝聚性}, 知以下事件以$1 - o(1)$同时成立:
+	
+  	 1) $\forall\,s\in[k], \Delta(\mathbf{U}_s) \le O\left(\sigma m\sqrt{k\log L}\right)$,
+	
+  	 2) $\forall\,s\in[k], \Delta(\mathbf{V}_s) \le O\left(\sigma m\sqrt{d\log L}\right)$.
+
+  注意到对所有 $s\le k$, 只要$k\le d/2$, 则 $\Delta(\mathbf{U}_s) \le \Delta(\mathbf{V}_s)$ 以 $ 1- o(1)$概率成立. 由于 $\arccos\theta(\mathbf{U}_s, \mathbf{X}_s^{(0)})$ 有界, 其中 $\mathbf{X}_s^{(0)}$ 是 $\mathbf{X}^{(0)}$ 的  $(d, s)$-子矩阵, 知下式对所有 $s\le k$ 成立:
+  \[
+  	\Delta(\mathbf{U}_s)\arccos\theta\left(\mathbf{U}_s, \mathbf{X}_s^{(0)}\right) \le O\left(\sigma m\sqrt{k\log L}\right).
+  \]
+  
+  应用\parencite{hardt2013robust}中的定理 2.9, 下式以 $1-o(1)$ 概率对所有 $s\in [k]$ 成立:
+  \begin{equation}\label{eq:tan夹角收敛}
+  %	\tan\theta(\mathbf{U}_s, \mathbf{X}_s^{(L)}) \le O\left( \frac{\sigma}{\gamma_s\lambda_s} \sqrt{ d\max\|\mathbf{X}^{(l)}\|_\infty^2\log L}\right).
+  	\tan\theta(\mathbf{U}_s, \mathbf{X}_s^{(L)}) \le O\left( \frac{\sigma m}{\gamma_s\lambda_s} \sqrt{ d \log L}\right).
+  \end{equation}
+
+  从而对 $s = 1$ 的情形, 命题成立. 现在对任意给定的 $s \in [k]$, 注意到 $\mathbf{u}_s$ 同时在 $(\mathbf{u}_1, \dots, \mathbf{u}_s)$张成的子空间 与 $(\mathbf{u}_1, \dots, \mathbf{u}_{s-1})$ 张成的子空间的正交补中, 从而我们有
+  \begin{equation}\label{eq:sin夹角收敛}
+  	\begin{split} &= \sin^2\theta\left(\mathbf{u}_s, \mathbf{x}_s^{(L)}\right) \\
+  		&= \left\|\mathbf{U}_{s-1} \mathbf{U}_{s-1}^T \mathbf{x}_s^{(L)} + \left(\mathbf{I} - \mathbf{U}_s \mathbf{U}_s^T\right) \mathbf{x}_s^{(L)}\right\|^2 \\
+  		&= \left\|\mathbf{U}_{s-1} \mathbf{U}_{s-1}^T \mathbf{x}_s^{(L)} \right\|^2 + \left\|(\mathbf{I} - \mathbf{U}_s \mathbf{U}_s^T) \mathbf{x}_s^{(L)}\right\|^2 \\
+  		&\le \sin^2\theta \left(\mathbf{U}_{s-1}, \mathbf{X}_{s-1}^{(L)}\right) + \sin^2\theta \left(\mathbf{U}_{s}, \mathbf{X}_{s}^{(L)}\right) \\
+  		&\le 2 \max\biggl\{\sin^2\theta \left(\mathbf{U}_{s-1}, \mathbf{X}_{s-1}^{(L)}\right), \sin^2\theta \left(\mathbf{U}_{s}, \mathbf{X}_{s}^{(L)}\right)\biggr\} \\
+  		&\le 2 \max\biggl\{\tan^2\theta \left(\mathbf{U}_{s-1}, \mathbf{X}_{s-1}^{(L)}\right), \tan^2\theta \left(\mathbf{U}_{s}, \mathbf{X}_{s}^{(L)}\right)\biggr\}.
+  	\end{split}
+  \end{equation}
+  注意到 $m = \max_l \left\|\mathbf{X}^{(l)}\right\|_\infty\le 1$, 将\eqref{eq:tan夹角收敛} 代入 \eqref{eq:sin夹角收敛}中, 则对 $s\ge 2$的情形, 定理成立.
+\end{proof}
+
+\begin{thm}[特征值的精确性]\label{thm:特征值的精确性}
+	沿用定理 \ref{thm:特征向量的精确性}的记号, 对$s\le k$, 记 $\hat{\lambda}_s = \left\|\mathbf{w}_s^{(L)}\right\|_2$, 其中 $\mathbf{w}_s^{(L)}$ 是 $\mathbf{W}^{(L)}$ 的第$s$列. 则下式以$1-o(1)$概率对所有$s \le k$成立:
+	\begin{equation*}
+		\quad |\hat{\lambda}_s - \lambda_s| \le O\left( \frac{d^3kL\log L\log\bigl(\frac{1}{\delta}\bigr)}{n^2\epsilon^2\gamma_s^2\lambda_s^2} +  \frac{kd\sqrt{L\log L \log\bigl(\frac{1}{\delta}\bigr)}}{n\epsilon}\right).
+	\end{equation*}
+\end{thm}
+\begin{proof}
+  令 $\mathbf{x}_s = \mathbf{x}_s^{(L-1)}$, $\mathbf{w}_s = \mathbf{w}_s^{(L)}$, 其中 $\mathbf{g}_s$ 为 $\mathbf{G}^{(L)}$ 的第$s$列, 简记 $\theta^{(L)} = \theta(\mathbf{U}_s, \mathbf{X}_s^{(L)})$. 令$\mathbf{x}_s =\mathbf{u}+\mathbf{u}^{\bot}$, 其中$\mathbf{u}$是$\lambda_s$对应的特征向量. 则由 $\mathbf{u}=\mathbf{x}_s\cos\phi$ 以及 $\mathbf{u}^{\bot} = \mathbf{x}_s\sin\phi$ 对所有 $\phi\le \theta^{(L)}$成立, 知
+  \begin{equation*}
+  	\begin{split}
+  		\hat{\lambda}_s^2 &= \mathbf{w}_s^T \mathbf{w}_s =(\mathbf{A}\mathbf{x}_s+\mathbf{g}_s)^T (\mathbf{A}\mathbf{x}_s+\mathbf{g}_s) =\mathbf{x}_s^T \mathbf{A}^2 \mathbf{x}_s+2\mathbf{x}_s^T \mathbf{A}\mathbf{g}_s+\mathbf{g}_s^T\mathbf{g}_s\\
+          \end{split}
+          \end{equation*}
+  令 $R=2\mathbf{x}_s^T \mathbf{A}\mathbf{g}_s+\mathbf{g}_s^T\mathbf{g}_s$, 由引理 \ref{lem:高斯凝聚性}, $R\le O\left(\sigma\sqrt{k\log L})+O(d\sigma^2\right)$以$1-o(1)$概率成立. 从而
+  \begin{equation*}
+     \begin{split}
+  		\mathbf{x}_s^T \mathbf{A}^2 \mathbf{x}_s&= \mathbf{u}^T \mathbf{A}^2 \mathbf{u}+ \mathbf{u^{\bot}}^T \mathbf{A}^2 \mathbf{u^{\bot}} = \lambda_s^2 \mathbf{u}^T \mathbf{u}+ \mathbf{u^{\bot}}^T \mathbf{A}^2 \mathbf{u^{\bot}}\\
+  		&\le \lambda_s^2 \|\mathbf{u}\|^2+ \lambda_1^2 \|\mathbf{u}^{\bot}\|^2 \le \lambda_s^2 \cos^2\theta^{(L)}+ \lambda_1^2 \sin^2\theta^{(L)}\\
+  		&= \lambda_s^2 (1-\sin^2\theta^{(L)})+ \lambda_1^2 \sin^2\theta^{(L)} = \lambda_s^2 + (\lambda_1^2- \lambda_s^2) \sin^2\theta^{(L)}.
+    \end{split}
+  \end{equation*}
+  于是,
+  \begin{equation*}
+  	\begin{split}
+  		|\hat{\lambda}_s - \lambda_s| &\le\frac{(\lambda_1^2- \lambda_s^2)} {\hat{\lambda}_s + \lambda_s} \sin^2\theta^{(L)}+O\left(\sigma\sqrt{k\log L}\right) + O\left(\sigma\sqrt{k\log L}\right)\\
+  		 &= O\left(\frac{ \sigma^2 d\log L}{\gamma_s^2\lambda_s^2}\right) +O\left(\sigma\sqrt{k\log L}\right).
+  	\end{split}
+  \end{equation*}
+  将 $\sigma$ 的设定代入即得.
+\end{proof}
+% section 使用隐私主成分分析改进运行时间 (end)
+\section{总结} % (fold)
+\label{sec:总结}
+综合前几个小节的内容, 我们先给出一个从椭球中均匀抽样的子程序(算法\ref{alg:椭球均匀抽样}), 然后给出不同的隐私要求下运行时间得到改进的三角机制(算法\ref{alg:改进的三角机制I}, 算法\ref{alg:改进的三角机制II}).
+
+\begin{algorithm}[hbtp]
+  \caption{椭球均匀抽样}\label{alg:椭球均匀抽样}
+  \begin{algorithmic}[1]
+    \INTERFACE ellrnd($n, d, \mathbf{a}$)
+    \REQUIRE 数据点个数$n$, 维度$d$, 椭圆各半轴长度$\mathbf{a}$, 其中$|\mathbf{a}| = d$.
+    \ENSURE 以欧式空间$\mathbb R^d$原点为中心, 各坐标轴为轴, $\mathbf{a}$为半轴长度的椭球中的$n$个数据点$X$.
+    \STATE 初始化: $X \leftarrow \emptyset$
+    \FORALL{$j = 1, 2, \dots, n$}
+      \STATE 抽取Beta随机数 $r \sim \mathrm{Beta}(d, 1)$
+      \STATE 抽取$d$个均匀分布随机数 $\phi_i \sim_{\text{i.i.d.}} U[0, \pi]$
+      \STATE 令 $\phi_d \leftarrow 2 \phi_d$, $\boldsymbol{\phi} \leftarrow (\phi_1, \dots, \phi_d)$
+      \STATE 令 $ \mathbf{x}$ 为 $(r\mathbf{a}, \boldsymbol{\phi})$ 的极坐标逆变换结果
+      \STATE 将 $\mathbf{x}$ 添加到 $X$ 中
+    \ENDFOR
+    \RETURN $X$
+  \end{algorithmic}
+\end{algorithm}
+\begin{algorithm}[hbtp]
+\caption{改进的三角机制 I}\label{alg:改进的三角机制I}
+\begin{algorithmic}[1]
+  \REQUIRE 数据库$D \in \left([-1,1]^d \right)^n$, 隐私参数$\epsilon > 0$, 格点个数$C$, 查询基个数$R$, 其中$C\ll N^d, R \le t^d$, $N, t$随后初始化. 查询光滑阶数$K\in\mathbb{N}$, 隐私主分析输出维度$k$, 迭代次数$L$, 椭圆半径缩放系数$\kappa$.
+  \ENSURE 合成数据库 $\hat{D} \in \left([-1,1]^d \right)^m$
+  \NOTATION $\mathcal{T}_{t}^d = \{0,1,\ldots,t-1\}^d, a_k = \frac{2k+1-N}{N}, A = \{a_k\colon k=0,1,\ldots, N-1\}, \mathcal{L} = \left\{\frac{i}{L}\colon i=-L, -L+1, \ldots, L-1, L\right\}, \mathbf{x} \triangleq (x_1, \cdots, x_d), \theta_i(\mathbf{x}) \triangleq \arccos(x_i)$. 
+  \STATE 令 $t= \left\lceil n^{\frac{1}{2d+K}} \right\rceil$,
+   $N=\left\lceil n^\frac{K}{2d+K}\right\rceil$, $m=\left\lceil n^{1+\frac{K+1}{2d+K}}\right\rceil$,
+   $L=\left\lceil n^{\frac{d+K}{2d+K}}\right\rceil$. \label{alg:line:改进三角机制I:参数设定}
+  \STATE 初始化: $D' \leftarrow \emptyset$, $\tilde{D} \leftarrow \emptyset$, $\mathbf{u} \leftarrow \mathbf{0}_{N^d}$ \label{alg:line:改进三角机制I:初始化}
+  \STATE 令$D'$为$D$关于格点集合$A^d$的离散化
+  \STATE 在$\mathcal{T}_t^d$中按照$\|\cdot\|_1$升序抽取前$R$个格点, 记为$\mathcal{T}_R$
+  \FORALL{$\mathbf{r} = (r_1,\ldots,r_d) \in \mathcal{T}_R$} 
+    \STATE $b_{\mathbf{r}} \leftarrow \frac{1}{n} \sum_{\mathbf{x}\in D'}\cos\left(r_1 \theta_1(\mathbf{x}) \right)\ldots \cos \left(r_d \theta_d(\mathbf{x}) \right)$ \label{alg:line:改进三角机制I:计算原始数据查询基结果}
+    \STATE $\hat{b}_{\mathbf{r}} \leftarrow b_{\mathbf{r}} + \mathrm{Lap}\left(\frac{3R}{n \epsilon}\right)$ \label{alg:line:改进三角机制I:对查询基结果增加噪音}
+    \STATE {$\hat{b}'_{\mathbf{r}} \leftarrow
+      \arg\min_{l\in \mathcal{L}}\left|\hat{b}_{\mathbf{r}}-l\right|$} \label{alg:line:改进三角机制I:LP编码离散化b}
+  \ENDFOR
+  \STATE 对均值添加噪音: $\tilde{\mu} \leftarrow \overline{D} + \mathrm{Lap}\left(\frac{6d}{n\epsilon}\right)$ \label{alg:line:改进三角机制I:对均值添加噪音}
+  \STATE 令$(\boldsymbol{\lambda}, X) \leftarrow \mathrm{PSIeps}\left(D, \epsilon/3, k, L, \tilde{\mu}\right)$ \label{alg:line:改进三角机制I:PSI主成分}
+  \STATE 生成椭圆随机数: $Z \leftarrow \mathrm{ellrnd}\left(C, k, \kappa\sqrt{\boldsymbol{\lambda}}\right)$
+  \STATE 生成数据点: $G \leftarrow \tilde{\mu} + ZX^T$ \label{alg:line:改进三角机制I:生成椭圆数据点}
+  \STATE 令$G'$为$G$关于格点集合$A^d$的离散化
+  \FORALL{$\mathbf{a} = (a_1,\ldots,a_d) \in G'$} \label{alg:line:改进三角机制I:计算格点查询基结果:begin}
+    \FORALL{$\mathbf{r} = (r_1,\ldots,r_d) \in \mathcal{T}_R$}
+      \STATE $W_{\mathbf{ra}} \leftarrow \cos \left(r_1 \arccos(a_1) \right)\ldots \cos \left(r_d \arccos(a_d) \right)$ \label{alg:line:改进三角机制I:计算格点查询基结果}
+      \STATE $W'_{\mathbf{ra}} \leftarrow\arg\min_{l\in \mathcal{L}}|W_{\mathbf{rk}}-l|$ \label{alg:line:改进三角机制I:LP编码离散化W}
+    \ENDFOR
+  \ENDFOR \label{alg:line:改进三角机制I:计算格点查询基结果:end}
+  
+  \STATE $\hat{\mathbf{b}'} \leftarrow \left(\hat{b}'_{\mathbf{r}}\right)_{\|\mathbf{r}\|_{\infty}\le t-1}$
+
+  \STATE $W' \leftarrow (W'_{\mathbf{rk}})_{\|\mathbf{r}\|_{\infty} \le t-1,
+  \mathbf{a}\in G'}$
+  \STATE 求解以下线性规划问题: 
+  \begin{align*}
+    \min_{\mathbf{u}} \left\| W'\mathbf{u} - \hat{\mathbf{b}}'\right\|_{1}, \\
+    \text{s.t.}\, \mathbf{u} \succeq 0,\, \|\mathbf{u}\|_1 =1.
+  \end{align*}
+  记最优解为$\mathbf{u}^*$($\mathbf{u}^*$是$G'$上的一个概率分布) \label{alg:line:改进三角机制I:线性规划}
+  \STATE 按照分布$\mathbf{u}^*$在$G'$中抽取$m$个数据格点, 记为$\hat{D}$. \label{alg:line:改进三角机制I:生成合成数据库}
+  \RETURN $\hat{D}$.
+\end{algorithmic}
+\end{algorithm}
+\begin{algorithm}[hbtp]
+\caption{改进的三角机制 II}\label{alg:改进的三角机制II}
+\begin{algorithmic}[1]
+  \REQUIRE 在算法\ref{alg:改进的三角机制I}的输入基础上增加隐私参数$\delta\in(0, 1]$.
+  \ENSURE 与算法\ref{alg:改进的三角机制I}的输出相同.
+  \NOTATION 与算法\ref{alg:改进的三角机制I}的记法相同.
+  \STATE 令 $t = \left\lceil n^{\frac{2}{3d+2K}}(\log\frac{1}{\delta}) ^{-\frac{1}{3d+2K}} \right\rceil$,
+   $N = \left\lceil n^{\frac{2K}{3d+2K}}(\log\frac{1}{\delta}) ^{-\frac{K}{3d+2K}}\right\rceil$, \\ 
+   $m = \left\lceil n^{\frac{4d+4K+2}{3d+2K}}(\log\frac{1}{\delta}) ^{-\frac{2d+2K+1}{3d+2K}}\right\rceil$,
+   $L=\left\lceil n^{\frac{2d+2K}{3d+2K}}(\log\frac{1}{\delta}) ^{-\frac{d+K}{3d+2K}}\right\rceil$. \label{alg:line:改进三角机制II:参数设定}
+   \STATE 初始化: $D' \leftarrow \emptyset$, $\tilde{D} \leftarrow \emptyset$, $\mathbf{u} \leftarrow \mathbf{0}_{N^d}$ \label{alg:line:改进三角机制II:初始化}
+   \STATE 令$D'$为$D$关于格点集合$A^d$的离散化
+   \STATE 在$\mathcal{T}_t^d$中按照$\|\cdot\|_1$升序抽取前$R$个格点, 记为$\mathcal{T}_R$
+   \FORALL{$\mathbf{r} = (r_1,\ldots,r_d) \in \mathcal{T}_R$} 
+     \STATE $b_{\mathbf{r}} \leftarrow \frac{1}{n} \sum_{\mathbf{x}\in D'}\cos\left(r_1 \theta_1(\mathbf{x}) \right)\ldots \cos \left(r_d \theta_d(\mathbf{x}) \right)$ \label{alg:line:改进三角机制II:计算原始数据查询基结果}
+     \STATE $\hat{b}_{\mathbf{r}} \leftarrow b_{\mathbf{r}} + \mathrm{Lap}\left(\frac{3\sqrt{2R\log\frac{1}{\delta}}}{n \epsilon}\right)$
+     \STATE {$\hat{b}'_{\mathbf{r}} \leftarrow
+       \arg\min_{l\in \mathcal{L}}\left|\hat{b}_{\mathbf{r}}-l\right|$} \label{alg:line:改进三角机制II:LP编码离散化b}
+   \ENDFOR
+   \STATE 对均值添加噪音: $\tilde{\mu} \leftarrow \overline{D} + \mathrm{Lap}\left(\frac{6d}{n\epsilon}\right)$
+   \STATE 令$(\boldsymbol{\lambda}, X) \leftarrow \mathrm{PSIeps}\left(D, \epsilon/3, \delta/2, k, L, \tilde{\mu}\right)$
+   \STATE 生成椭圆随机数: $Z \leftarrow \mathrm{ellrnd}\left(C, k, \kappa\sqrt{\boldsymbol{\lambda}}\right)$
+   \STATE 第\ref{alg:line:改进三角机制I:生成椭圆数据点}行至第\ref{alg:line:改进三角机制I:生成合成数据库}行与算法第\ref{alg:line:改进三角机制I:生成椭圆数据点}行至第\ref{alg:line:改进三角机制I:生成合成数据库}行相同
+   \setalglineno{25}
+  \RETURN $\hat{D}$.
+\end{algorithmic}
+\end{algorithm}
+\begin{thm}[改进三角机制的隐私性]\label{thm:改进三角机制的隐私性}
+  改进的三角机制I(算法\ref{alg:改进的三角机制I})保证$\epsilon$-差分隐私, 改进的三角机制II(算法\ref{alg:改进的三角机制II})保证$(\epsilon, \delta)$-差分隐私.
+\end{thm}
+\begin{proof}
+  以改进的三角机制I为例, 算法\ref{alg:改进的三角机制I}只有第\ref{alg:line:改进三角机制I:对查询基结果增加噪音}行查询基的计算, 第\ref{alg:line:改进三角机制I:PSI主成分}行计算主成分与特征向量, 以及第\ref{alg:line:改进三角机制I:对均值添加噪音}行均值的计算中使用了原始数据信息. 不难发现这些步骤所加的噪音足以保证$\left(\frac{\epsilon}{3}\right)$-差分隐私, 根据组合定理I(定理\ref{thm:组合定理I}), 三角机制I保证$\epsilon$-差分隐私. 对改进的三角机制II隐私性的证明是完全类似的.
+\end{proof}
+% section 总结 (end)
+% chapter 理论 (end)

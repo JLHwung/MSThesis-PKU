@@ -1,0 +1,496 @@
+\chapter{背景} % (fold)
+\label{cha:背景}
+\section{差分隐私定义} % (fold)
+\label{sec:差分隐私定义}
+记$D\in \mathcal{X}^n$为一个数据库, 其中 $\mathcal{X}$称为数据库的域(data universe). 每一行是一个观测, 并记$d_i$为第$i$个观测, $|D| = n$ 为数据库的观测数.
+\begin{defn}[相邻数据库]\label{defn:相邻数据库}
+  称数据库$D$与$D'$是相邻的, 若$|D| = |D'|$ 且 $D$与$D'$仅有一个观测是不同的.
+\end{defn}
+\begin{defn}[$(\epsilon, \delta)$-差分隐私\parencite{dwork2006our}]\label{defn:epsilon,delta差分隐私}
+  一个以数据库为输入, 以集合$R$ 为输出的随机算法$\mathcal M$保证$(\epsilon, \delta)$-差分隐私($(\epsilon, \delta)$-differential privacy), 若对任意的相邻数据库对$D, D'$ 以及任意$A\subset R$, 满足
+  \[
+  \mathbb P(\mathcal M(D)\in A) \le \mathbb P(\mathcal M(D')\in A)\cdot e^\epsilon + \delta,
+  \]
+  其中$\epsilon, \delta$为非负实数, 概率测度$\mathbb P$对应的的$\sigma$-代数为$\mathcal{M}$中使用的随机数据流的取值域所生成的$\sigma$-代数.
+\end{defn}
+下文我们均简称随机算法为机制, 若机制$\mathcal M$保证$(\epsilon, 0)$-差分隐私, 则简称$\mathcal M$保证$\epsilon$-差分隐私 \parencite{dwork_calibrating_2006}. 
+
+根据定义\ref{defn:epsilon,delta差分隐私}, 立刻有以下命题:
+\begin{prop}[后处理隐私不变]\label{prop:后处理隐私不变}
+  设输出为$R$的机制$\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私, 对任意函数$f\colon R\to R'$, 机制$\mathcal{M}\circ f$保证$(\epsilon, \delta)$-差分隐私.
+\end{prop}
+\begin{proof}
+  对任意相邻数据库$D, D'$, 任取$A\subset R'$, 定义$f^{-1}(A) = \{ r\in R\colon f(r)\in A\}$, 于是
+  \begin{align*}
+    \mathbb P(f(\mathcal{M}(D)) \in A) &= \mathbb P(\mathcal{M}(D) \in f^{-1}(A)) \\
+    &\le \mathbb P(\mathcal M(D')\in f^{-1}(A))\cdot e^\epsilon + \delta \\
+    &= \mathbb P(f(\mathcal M(D'))\in A)\cdot e^\epsilon + \delta.
+  \end{align*}
+  根据定义\ref{defn:epsilon,delta差分隐私}, 机制$\mathcal{M}\circ f$保证$(\epsilon, \delta)$-差分隐私.
+\end{proof}
+对于每一个可以选择是否提交隐私信息的个体, 个体提交与否将构成一对相邻数据库, 差分隐私保证了机制对于这一对相邻数据库的输出近似概率不可分的, 从而保证了该个体的隐私信息. 根据定义\ref{defn:epsilon,delta差分隐私}, 一种最简单的保证差分隐私的机制是: 无论任何数据库输入$D$, 均返回一个与$D$无关的随机变量. 事实上, 该机制是完全保护隐私的, 因为不仅相邻数据库, 在该机制下所有数据库都是概率不可分的. 但它并不是人们需要的, 因为我们甚至无法通过这样的机制来获得数据库的均值、方差等统计量, 这也是差分隐私与加密、哈希等传统密码学操作的区别之一.
+
+所有的统计量都是数据库的一个数值查询, 即数据库上的函数$f : \mathcal{X}^n \to \mathbb R^d$. 我们希望机制可以仅对相邻数据库近似概率不可分, 而对不同的数据库产生不同的输出, 一种直观的机制就是在查询的结果上增加随机性的噪音, 使得相邻数据库的查询结果都淹没在噪音里, 从而达到近似概率不可分的目的. 因此直观而言, 我们需要刻画查询对相邻数据库敏感程度, 如果查询在相邻数据库上的输出结果差异很大, 那么我们只有增大噪音的规模才能保证隐私. 下面我们给出敏感程度的刻画:
+\begin{defn}[$L_1$-敏感性]
+  对函数$f : \mathcal{X}^n \to \mathbb R^d$, 定义
+  \[
+  S(f) \triangleq \sup_{\substack{D, D'\in \mathcal{X}^n \\ \text{$D, D'$为相邻数据库}}}\left\| f(D) - f(D') \right\|_1,
+  \]
+  称$S(f)$为$f$的$L_1$-敏感性.
+\end{defn}
+在不引起混淆的情况下, 均简称$L_1$-敏感性为敏感性. 事实上, 敏感性可以看作函数 $f$在 Hamming 距离$\|\cdot\|_H$下的 Lipschitz 条件: 即对所有的$D, D'\in\mathcal {X}^n$, 均有$\|f(D) - f(D')\| \le S(f) \| D - D'\|_H$. 因此, 敏感性的定义可以扩充到其他距离. 本文我们均考虑 Hamming 距离意义下的敏感性. 下面的例子实现了在查询结果增加随机性扰动来保证差分隐私的想法.
+
+\begin{example}[单个查询的 Laplace 机制]\label{exa:单个查询的Laplace机制}
+  任取数据库$D \in \mathcal{X}^n$, 函数 $f : \mathcal{X}^n \to \mathbb R^d$ 是对数据库的一个查询. 构造机制$\mathcal{M}$:
+  \[
+  \mathcal{M}(D) = f(D) + (Y_1, \cdots, Y_d),
+  \]
+  其中$Y_i \sim_{\text{i.i.d.}} \mathrm{Lap}(S(f)/\epsilon)$ 服从 Laplace 分布, 且 $\mathrm{Lap}(\sigma)$的概率密度函数为
+  \[
+  h(x) = \frac{1}{2\sigma} e^{ - \frac{|x|}{\sigma}},
+  \]
+  则机制$\mathcal{M}$保证$\epsilon$-差分隐私.
+\end{example}
+\begin{proof}
+  根据 Laplace 分布性质, 任取$x, x' \in \mathbb R$, 对$\mathrm{Lap}(\sigma)$, 概率密度$h$满足 $h(x)/h(x') \le \exp ( | x - x'| / \sigma)$. 类似地对 $\mathbf{y}, \mathbf{y}' \in\mathbb R^d$, 联合密度 $h(\mathbf{y})/h(\mathbf{y}') \le \exp( \|\mathbf{y} - \mathbf{y}'\|_1 / \sigma)$. 根据$\epsilon$-差分隐私定义, 
+  \[
+  \begin{split}
+    \frac{\mathbb{P}(f(D) + \mathbf{Y} = \mathbf{t})}{\mathbb{P}(f(D') + \mathbf{Y} = \mathbf{t})} &=  \frac{\mathbb{P}(\mathbf{Y} = \mathbf{t} - f(D))}{\mathbb{P}(\mathbf{Y} = \mathbf{t} - f(D'))} \\
+    & \le \exp \left( \frac{\| f(D) - f(D') \|_1}{\sigma} \right) \\
+    & = \exp \left( \epsilon \frac{\| f(D) - f(D') \|_1}{S(f)} \right) \\
+    & \le e^\epsilon,
+  \end{split}
+  \]
+  故机制$\mathcal{M}$保证$\epsilon$-差分隐私.
+\end{proof}
+
+由定义\ref{defn:epsilon,delta差分隐私}可以看到, $\epsilon$-差分隐私的要求比$(\epsilon, \delta)$-差分隐私要强, 而对于$(\epsilon, \delta)$-差分隐私而言, 简单的输出扰动仍然可以作为一种有效的机制. 
+
+\begin{example}[单个查询的 Gauss 机制]\label{exa:单个查询的Gauss机制}
+  任取数据库$D \in \mathcal{X}^n$, 函数 $f : \mathcal{X}^n \to \mathbb R^d$ 是对数据库的一个查询. 构造机制$\mathcal{M}$:
+  \[
+  \mathcal{M}(D) = f(D) + (Y_1, \cdots, Y_d),
+  \]
+  其中
+  \[
+  Y_i \sim_{\text{i.i.d.}} N\left(0, \frac{2(S(f))^2}{\epsilon^2}\log\frac{2}{\delta}\right),
+  \] 
+  则机制$\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私.
+\end{example}
+\begin{proof}
+  证明与例子\ref{exa:单个查询的Laplace机制}的证明是类似的. 对任意$f$, 考虑正规化的 $\hat{f} = f / S(f)$, 则$S(\hat{f}) = 1$. 根据$(\epsilon, \delta)$-差分隐私定义, 记$\sigma = \frac{S(f)}{\epsilon}\sqrt{2\log\frac{\delta}{2}}$, 则
+  \[
+  \begin{split}
+    \frac{\mathbb{P}(f(D) + \mathbf{Y} = \mathbf{t})}{\mathbb{P}(f(D') + \mathbf{Y} = \mathbf{t})} &= \frac{\mathbb{P}(\hat{f}(D) + \mathbf{Y}/ S(f) = \mathbf{t}/S(f))}{\mathbb{P}(\hat{f}(D') + \mathbf{Y}/S(f) = \mathbf{t}/S(f))} \\
+    &\le \frac{\mathbb{P}(\mathbf{Z} = \mathbf{t})}{\mathbb{P}(\mathbf{Z} = \mathbf{t'})} = \exp\left(- \frac{\|\mathbf{t}\|_2^2 - \|\mathbf{t}'\|_2^2}{2\sigma^2} \right),
+  \end{split}
+  \]
+  其中$\mathbf{Z} \sim N(0, \sigma^2/S(f)^2)$, $\|\mathbf{t} - \mathbf{t}'\|_1 = 1$. 上式取到最大值当且仅当$\mathbf{t}$与$\mathbf{t}'$仅有一个分量不相等, 不妨记作$x$, 从而上式简化为
+  \[
+  \exp\left( \frac{(x + 1)^2 - x^2}{2\sigma^2} \right) = \exp \left(\frac{x}{\sigma^2} + \frac{1}{2\sigma^2} \right).
+  \]
+  注意到当$x\le\epsilon\sigma^2 - \frac{1}{2}$时, 上式小于$e^\epsilon$, 由$\sigma$的取值, 我们有
+  \[
+  \mathbb{P}\left(x > \epsilon \sigma^2 - \frac{1}{2} \right) \le \frac{\exp(-\epsilon^2\sigma^2/2)}{\epsilon\sigma^2\sqrt{\pi}} \le \delta.
+  \]
+  因此, 机制$\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私.
+\end{proof}
+
+与差分隐私相对地, 如果输出扰动的规模太小, 攻击者完全可以破译出敏感数据库的部分个体信息.
+\begin{thm}[明显的隐私破坏, \parencite{dinur2003revealing}]\label{thm:明显的隐私破坏}
+  对敏感数据库$D \in \{0, 1\}^n$, 第$i$行观测为$D_i$, 定义查询$Q_S(D) = \sum_{i\in S} D_i$, 查询类$Q = \{Q_S\colon S\subset[n]\}$称为子集求和查询. 考虑机制$\mathcal{M}\colon \{0, 1\}^n \to \{0, 1\}^k$满足对任意$Q_S \in Q$, 
+  \[
+    |Q_S(D) - Q_S(\mathcal{M}(D))| \le \alpha,
+  \]
+  则攻击者可以构造$D' = \mathcal{A}(\mathcal{M}(D))$, 使得
+  \[
+    \|D - D'\|_0 \le 4\alpha.
+  \]
+\end{thm}
+由定理\ref{thm:明显的隐私破坏}可知, 为了使机制对子集求和查询保证差分隐私, 至少需要$\Theta(n)$大小的输出扰动.
+% section 差分隐私定义 (end)
+
+\section{组合定理} % (fold)
+\label{sec:组合定理}
+例子\ref{exa:单个查询的Laplace机制}与例子\ref{exa:单个查询的Gauss机制}给出了单个数值查询的隐私机制, 而对于一组数值查询, 重复使用机制仍然是保证差分隐私的:
+
+\begin{thm}[\parencite{dwork2006our}]\label{thm:对查询序列的差分隐私}
+  对于保证$(\epsilon, \delta)$-差分隐私的机制$\mathcal{M}$, 将$\mathcal{M}$循环地运用在$k$个查询上作为一个新的机制$\mathcal{M}_k$, 则$\mathcal{M}_k$保证$(k\epsilon, k\delta)$-差分隐私.
+\end{thm}
+\begin{proof}
+  记循环运行原隐私机制的$k$次输出为一个$k$元组: $\mathbf{x} = (x_1, x_2, \dots, x_k) \in R^k$. 任取定$A = A_1\otimes A_2 \otimes \cdots \otimes A_k\subset R^k$, 有
+  \[
+  \begin{split}
+    \mathbb P(\mathbf{x} \in A) = \prod_{j\le k}\mathbb P(x_j \in A_j| x_1, \dots, x_{j-1}).
+  \end{split}
+  \]
+  注意到每次对输出增加的噪音是独立的, 从而
+  \begin{align*}
+    \prod_{j\le k}\mathbb P(x_j \in A_j| x_1, \dots, x_{j-1}) &\le \prod_{j\le k} \left( e^\epsilon \mathbb P(x_j' \in A_j | x_1, \dots, x_{j-1})\right) + k \delta \\
+    &= e^{k\epsilon} \prod_{j\le k} \left( \mathbb P(x_j' \in A_j | x_1, \dots, x_{j-1})\right) + k\delta \\
+    &= e^{k\epsilon} \mathbb P(\mathbf{x}' \in A) + k\delta. \qedhere
+  \end{align*}
+\end{proof}
+由定理\ref{thm:对查询序列的差分隐私}的证明过程可以发现, 该定理可以很容易推广到一般的情形: 给定一族隐私机制$\mathcal{M}$, 用户在第$i$轮除了可以选定查询$Q_i$以外, 还可以选定隐私机制$\mathcal{M}_i$与所需访问的数据库$D_i$, 并且在输入时都能获取前面每一轮的输出$(y_1, \dots, y_{i-1})$. 这种一般情形可以表示为算法\ref{alg:k-fold_adaptive_composition}. 于是我们不加证明地给出定理\ref{thm:组合定理I}.
+\begin{algorithm}[hbtp]
+  \caption{$k$-倍自择组合实验($k$-Fold Adaptive Composition)}\label{alg:k-fold_adaptive_composition}
+  \begin{algorithmic}[1]
+    \REQUIRE 用户$\mathcal{A}$, 用户选择的随机性$R$, 一族隐私机制$\mathcal{M}$, 一列数据库$D$, 实验倍数$k$.
+    \ENSURE 机制结果$\mathbf{y} = (y_1, \dots, y_k)$.
+    \FOR{$i=1$ to $k$}
+    \STATE $\mathcal{A}$根据$R,y_1,\dots,y_{i-1}$选择数据库$D_i$与隐私机制$\mathcal{M}_i\in\mathcal{M}$.
+    \STATE $\mathcal{A}$获得隐私机制$\mathcal{M}_i$的输出$y_i \leftarrow \mathcal{M}_i(D_i)$.
+    \ENDFOR
+  \end{algorithmic}
+\end{algorithm}
+\begin{thm}[组合定理 I]\label{thm:组合定理I}
+  对$k$个差分隐私机制, 其中第$i$个机制的隐私参数为$(\epsilon_i, \delta_i)$, 则 $k$-倍自择组合实验保证$\left(\sum_{i=1}^k\epsilon_i, \sum_{i=1}^k\delta_i\right)$-差分隐私.
+\end{thm}
+由定理\ref{thm:组合定理I}可以导出对于多个查询保证$\epsilon$-差分隐私的 Laplace 机制.
+\begin{prop}[Laplace 机制 I]\label{prop:Laplace 机制 I}
+  对数据库$D$, 给定一组查询$f_1, f_2, \dots, f_k$, 记$\Delta = \max_k S(f_k)$, 则机制$\mathcal{M}$:
+  \[
+    Y_i = f_i(D) + \mathrm{Lap}\left(\Delta\cdot\frac{k}{\epsilon}\right)
+  \]
+  保证$\epsilon$-差分隐私.
+\end{prop}
+对于$\epsilon$-隐私机制而言, $k$-倍自择组合实验将得到$k\epsilon$-隐私机制, 此时参数$\delta = 0$. 如果我们放宽这一限制, 则有可能用$\delta$换取$k\epsilon$的下降, 这也是定理\ref{thm:组合定理II}的直观含义, 在介绍这一定理前, 先做一些准备.
+
+\begin{defn}[最大增益(Max Divergence)]\label{defn:最大增益}
+  定义域相同的两个随机变量$Y, Z$的最大增益定义为
+  \[
+  D_\infty(Y\|Z) \triangleq \max_{A \subset \mathrm{Supp}(Y)}\log\frac{\mathbb P(Y \in A)}{\mathbb P(Z\in A)},
+  \]
+  其中$\mathrm{Supp}(\cdot)$为随机变量的支撑集. 随机变量$Y, Z$的$\delta$-近似最大增益定义为
+  \[
+  D^\delta_\infty(Y\|Z) \triangleq \max_{A \subset \mathrm{Supp}(Y)\colon\mathbb P(Y \in A)\ge\delta}\log\frac{\mathbb P(Y \in A)}{\mathbb P(Z\in A)}.
+  \]
+  特别地, $D^0_\infty(Y\|Z) = D_\infty(Y\|Z)$.
+\end{defn}
+\begin{note}
+  根据定义\ref{defn:最大增益}可以给出$(\epsilon, \delta)$-差分隐私的等价定义: 一个机制$\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私, 若对任意相邻数据库$D, D'$, 有
+  \[
+  D^\delta_\infty(\mathcal{M}(D)\|\mathcal{M}(D'))\le\epsilon, D^\delta_\infty(\mathcal{M}(D')\|\mathcal{M}(D))\le\epsilon.
+  \] 
+\end{note}
+\begin{defn}[信息增益]\label{defn:信息增益}
+  定义域相同的两个随机变量$Y, Z$, 定义$Y$关于$Z$的信息增益定义为
+  \[
+    D(Y\|Z) = \mathbb{E}_{y\sim Y}\left( \log\frac{\mathbb P(Y = y)}{\mathbb P(Z = y)}\right),
+  \]
+  其中当随机变量$Y$为连续随机变量时, 定义$P(Y = y)$为其概率密度函数$f_Y(y)$.
+\end{defn}
+比较定义\ref{defn:最大增益}与定义\ref{defn:信息增益}, 如果随机变量$(Y, Z), (Z, Y)$的最大增益都很小, 那么我们预期信息增益也将很小, 引理\ref{lem:信息增益界}刻画了这一关系.
+\begin{lem}\label{lem:信息增益界}
+  若随机变量$Y, Z$满足$D_\infty(Y\|Z)\le\epsilon, D_\infty(Z\|Y)\le\epsilon$, 则$D(Y\|Z)\le\epsilon(e^\epsilon - 1)$.
+\end{lem}
+\begin{proof}
+  由 Gibbs 不等式, $D(Y\|Z) \ge 0$, 从而
+  \begin{align*}
+    D(Y\|Z) &\le D(Y\|Z) + D(Z\|Y) \\
+    &= \int_{\mathbb R} \mathbb P(Y = y) \cdot \left( \log\frac{\mathbb{P}(Y = y)}{\mathbb{P}(Z = y)} + \log\frac{\mathbb{P}(Z = y)}{\mathbb{P}(Y = y)} \right) \\
+    &\qquad + (\mathbb P(Z = y) - \mathbb P(Y = y))\cdot\log\frac{\mathbb{P}(Z = y)}{\mathbb{P}(Y = y)} \mathrm{d}y\\
+    &\le \int_{\mathbb R} 0 + |\mathbb{P}(Z = y) - \mathbb{P}(Y = y)|\cdot\epsilon \mathrm{d}y\\
+    &= \epsilon \int_{\mathbb R} \left(\max\left\{\mathbb{P}(Y = y) - \mathbb{P}(Z=y)\right\}-\min\left\{\mathbb{P}(Y = y) - \mathbb{P}(Z=y)\right\}\right) \mathrm{d}y\\
+    &\le \epsilon \int_{\mathbb R} (e^\epsilon - 1) \min\left\{\mathbb{P}(Y = y) - \mathbb{P}(Z=y)\right\} \mathrm{d}y\\
+    &\le \epsilon(e^\epsilon - 1). \qedhere
+  \end{align*}
+\end{proof}
+\begin{thm}[Azuma 不等式\parencite{azuma1967weighted}]\label{thm:Azuma不等式}
+  一列随机变量$X_1, X_2, \dots, X_m$, 分别取值于$A_i$. 令$f$为$X_1, X_2, \dots X_m$的函数且$\mathbb E(f)$有界, 记
+  \[
+    c_i = \sup_{a_i, a_i'\in A_i}\left| \mathbb E(f|X_1, \dots, X_{i-1}, X_i = a_i) - \mathbb E(f|X_1, \dots, X_{i-1}, X_i = a_i')\right|,
+  \]
+  则
+  \[
+    \mathbb P\left(f(X_1,\dots,X_m)\ge \mathbb E(f) + t\right) \le \exp\left( - \frac{2t^2}{\sum_{i=1}^m c_i^2}\right).
+  \]
+\end{thm}
+\begin{thm}[稠模型定理, \parencite{tao2008primes, reingold2008dense}]\label{thm:稠模型定理}
+  给定$\epsilon > 0, \delta > 0$, 设支集为$R$的随机变量$X, Y$满足$D^\delta_\infty(X\|Y)\le\epsilon$, $D^\delta_\infty(Y\|X)\le\epsilon$, 则存在$R$上的随机变量$Z$, 使得$D_\infty(Z\|X)\le\epsilon, D_\infty(X\|Z)\le\epsilon$, 且对任意$S\subset R$, $|P(Z\in S) - P(X\in S)|\le\delta, |P(Z\in S) - P(Y\in S)|\le\delta$.
+\end{thm}
+\begin{thm}[组合定理 II\parencite{dwork2010boosting}]\label{thm:组合定理II}
+  对一族$(\epsilon, \delta)$-差分隐私机制, 其中$\epsilon > 0, \delta\in[0, 1]$, 给定$\delta' \in (0, 1]$, 则$k$-倍自择组合实验保证$(\epsilon', k\delta + \delta')$-差分隐私, 其中
+  \[
+  \epsilon' = \epsilon\cdot\sqrt{2k\log(1/\delta')} + k\epsilon(e^\epsilon - 1).
+  \]
+\end{thm}
+\begin{proof}
+  我们先证明$\delta = 0$的情形.
+  
+  记实验输出为$\mathbf{X} = (X_1, X_2, \dots, X_k)$, 并记$\mathbf{X}' = (X_1', X_2', \dots, X_k')$为使用相邻数据库的机制输出. 固定用户选择的随机性$R = r$, 任给定$\epsilon'$, 令
+  \[
+    B = \{\mathbf{x}\colon\mathbb P(\mathbf{X} = \mathbf{x}) > e^{\epsilon'}\cdot\mathbb P(\mathbf{X}' = \mathbf{x})\} \subset R^k,
+  \]
+  如果$\mathbb P(\mathbf{X} \in B) \le \delta'$, 则对任意$S \subset R^k$, 有
+  \[
+    \mathbb P(\mathbf{X} \in S) \le \mathbb P(\mathbf{X} \in B) + \mathbb P\left(\mathbf{X} \in \left(S\setminus B\right)\right) \le \delta' + e^{\epsilon'}\cdot \mathbb P(\mathbf{X}' \in S), 
+  \]
+  即$D_\infty^{\delta'}(\mathbf{X}\|\mathbf{X}')\le\epsilon'$. 下面只需要证明$\mathbb P(\mathbf{X} \in B) \le \delta'$.
+  
+  任固定$\mathbf{x} = (x_1, x_2, \dots, x_k)$, 我们有
+  \[
+    \begin{split}
+      \log\frac{\mathbb P(\mathbf{X} = \mathbf{x})}{\mathbb P(\mathbf{X}' = \mathbf{x})} &= \log\left( \prod_{i=1}^k \frac{\mathbb P(X_i = x_i|X_1 = x_1, \dots, X_{i-1} = x_{i-1})}{\mathbb P(X_i' = x_i|X_1' = x_1, \dots, X_{i-1}' = x_{i-1})}\right) \\
+      &= \sum_{i=1}^k \log\left( \frac{\mathbb P(X_i = x_i|X_1 = x_1, \dots, X_{i-1} = x_{i-1})}{\mathbb P(X_i' = x_i|X_1' = x_1, \dots, X_{i-1}' = x_{i-1})}\right) \\
+      &\triangleq \sum_{i=1}^k c_i(x_1, \dots, x_i).
+    \end{split}
+  \]
+  注意到当$x_1, \dots, x_{i-1}$已经确定时, 用户将确定$D_i$, 从而$D_i$与$D_i'$是确定的, 从而$X_i$服从分布$\mathcal{M}_i(D_i)$, $X_i'$服从分布$\mathcal{M}_i(D_i')$, 从而对任意$x_i$, 我们有
+  \[
+    c_i(x_1, \dots, x_{i-1}, x_i) = \log\left( \frac{\mathbb P(\mathcal{M}_i(D_i) = x_i)}{\mathbb P(\mathcal{M}_i(D_i') = x_i)} \right).
+  \]
+  由于机制$\mathcal{M}_i$保证$\epsilon$-差分隐私, 从而$|c_i(x_1, \dots, x_{i-1}, x_i)| \le \epsilon$, 注意到
+  \[
+  D(\mathcal{M}_i(D_i)\|\mathcal{M}_i(D_i')) = \mathbb E(c_i(x_1, \dots, x_{i-1}, X_i)),
+  \] 
+  由引理\ref{lem:信息增益界}, 有
+  \[
+    \mathbb E(c_i(x_1, \dots, x_{i-1}, X_i)) \le \epsilon(e^\epsilon - 1)).
+  \]
+  现在对随机变量$C_i = c_i(X_1, X_2, \dots, X_i)$以及函数$f(C_1,\dots, C_k) = \sum_{i=1}^k C_i$应用 Azuma 不等式(定理\ref{thm:Azuma不等式}), 注意到$\mathbb E(f) = k\epsilon(e^\epsilon - 1)$, 令不等式中$t = \epsilon \sqrt{2k\log(1/\delta')}$, 有
+  \[
+    \mathbb P(\mathbf{X} \in B) = \mathbb P\left(f(C_1, \dots, C_k)\ge \mathbb E(f) + \epsilon\sqrt{2k\log(1/\delta')}\right) \le \delta'.
+  \]
+  
+  当$\delta > 0$时, 应用定理\ref{thm:稠模型定理}立得.
+\end{proof}
+值得一提的是, 定理\ref{thm:组合定理II}中的隐私参数仅仅是$k$-倍自择组合实验隐私参数的上界, \parencite{oh2013composition} 给出了组合实验隐私参数的上确界. 与\ref{thm:组合定理II}相比, \parencite{oh2013composition}将$\epsilon' = O\left(k\epsilon^2 + \sqrt{k\epsilon^2\log(1/\delta')}\right)$改进到$O\left(k\epsilon^2 + \min\left\{\sqrt{k\epsilon^2\log(1/\delta')}, \epsilon\log(\epsilon/\delta')\right\}\right)$, 并将组合实验的$\delta$由$k\delta + \delta'$改进到$1 - (1-\delta)^k(1 - \delta')$.
+
+定理\ref{thm:组合定理II}可以导出保证$(\epsilon, \delta)$-差分隐私的 Laplace 机制.
+
+\begin{prop}[Laplace 机制 II]\label{prop:Laplace 机制 II}
+  对数据库$D$, 给定一组查询$f_1, f_2, \dots, f_k$, 记$\Delta = \max_{i\le k} S(f_i)$, 则机制$\mathcal{M}$:
+  \[
+    Y_i = f_i(D) + \mathrm{Lap}\left(\Delta\cdot\frac{\sqrt{2k\log(1/\delta)}}{\epsilon}\right)
+  \]
+  保证$(\epsilon, \delta)$-差分隐私.
+\end{prop}
+\begin{proof}
+  由定理\ref{thm:组合定理II}, 则对一族$\epsilon'$-差分隐私机制, $k$-倍自择组合实验保证$(\epsilon, \delta)$-差分隐私, 其中
+  \[
+    \epsilon = \epsilon'\cdot\sqrt{2k\log(1/\delta)} + k\epsilon'(e^{\epsilon'} - 1).
+  \]
+  我们希望寻找最大的$\epsilon'$使得组合实验保证$\epsilon, \delta$-差分隐私. 注意到当$\epsilon'\le1$时, $\epsilon'(e^{\epsilon'} - 1)\le2\epsilon'^2$, 转而考虑
+  \[
+    \epsilon = \epsilon'\cdot\sqrt{2k\log(1/\delta)} + 2k\epsilon'^2,
+  \]
+  方程的正根为
+  \begin{align*}
+    \epsilon' &= \frac{\sqrt{2k\log(1/\delta)}}{4k}\left[\sqrt{1 + \frac{4\epsilon}{\log(1/\delta)}} - 1\right] \ge \frac{\sqrt{2k\log(1/\delta)}}{4k}\cdot\frac{2\epsilon}{\log(1/\delta)} \\
+    &= \frac{\epsilon}{\sqrt{2k\log(1/\delta)}}.
+  \end{align*}
+  为了机制保证$(\epsilon, \delta)$-差分隐私, 只需要对单个查询, 子机制保证$\epsilon'$-差分隐私, 根据例子\ref{exa:单个查询的Laplace机制}, 这等价于对每个查询增加噪音
+  \[
+    Y_i \sim \mathrm{Lap}\left(\Delta\cdot\frac{\sqrt{2k\log(1/\delta)}}{\epsilon}\right).
+  \]
+  故命题\ref{prop:Laplace 机制 II}定义的机制$\mathcal{M}$保证$(\epsilon, \delta)$-差分隐私.
+\end{proof}
+% section 组合定理 (end)
+
+\section{精确性与查询规模} % (fold)
+\label{sec:精确性与查询规模}
+回顾命题\ref{prop:Laplace 机制 I}与命题\ref{prop:Laplace 机制 II}定义的 Laplace 机制, 对查询增加的噪音规模是一个保证隐私的下界, 即给定差分隐私参数设定$\epsilon$或$(\epsilon, \delta)$, 如果继续增加噪音的规模, 机制无疑仍然保证该参数设定的差分隐私, 注意到当噪音充分大时, 机制将退化到对所有数据库完全概率不可分的情形, 这是应该避免的. 因此, 我们需要对隐私机制引入一种评判标准.
+
+\begin{defn}[$(\alpha, \beta)$-精确性]\label{defn:alpha,beta精确性}
+  令$Q$为一族查询的集合, 给定数据库大小$n$, 称机制$\mathcal{M}$是$(\alpha, \beta)$-精确的, 若对任意的$D \in \mathcal{X}^n$, 
+  \[
+  \mathbb P\left(\max_{f\in Q} \left\| \mathcal{M}_f(D) - f(D)\right\|_2 \le \alpha\right) \ge 1 - \beta,
+  \]
+  其中概率测度$\mathbb P$与定义\ref{defn:epsilon,delta差分隐私}相同定义. 
+\end{defn}
+
+对于 Laplace 机制, 命题\ref{prop:Laplace机制的alpha,beta精确性}刻画了其精确性.
+\begin{prop}[Laplace机制的$(\alpha, \beta)$-精确性]\label{prop:Laplace机制的alpha,beta精确性}
+  对任意$k$个查询$f_1, \dots, f_k$, 记$\Delta$为最大敏感性, 则 Laplace 机制是$(\alpha, \beta)$-精确的, 其中对于保证$\epsilon$-差分隐私的 Laplace 机制 I(命题\ref{prop:Laplace 机制 I}), 有
+  \begin{equation}\label{eq:Laplace机制I_精确性alpha}
+    \alpha = \Delta\cdot\frac{k}{\epsilon}\cdot\log\left(\frac{k}{\beta}\right);
+  \end{equation}
+    
+  对于保证$(\epsilon, \delta)$-差分隐私的 Laplace 机制 II(命题\ref{prop:Laplace 机制 II}), 有
+  \begin{equation}\label{eq:Laplace机制II_精确性alpha}
+    \alpha = \Delta\cdot\frac{\sqrt{2k\log(1/\delta)}}{\epsilon}\cdot\log\left(\frac{k}{\beta}\right).
+  \end{equation}
+\end{prop}
+\begin{proof}
+  对于 Laplace 机制 I, 注意到$Y_i = \mathcal{M}_f(D) - f(D)$ 服从分布$\mathrm{Lap}(\Delta k/\epsilon)$, 于是$|Y_i| \sim \mathrm{Exp}(\Delta k/\epsilon)$, 故
+  \[
+    \mathbb P\left(|Y_i| \ge \Delta \cdot \frac{tk}{\epsilon}\right) = e^{-t}.
+  \]
+  由于$Y_1, \dots, Y_k$是独立的, 于是
+  \[
+    \begin{split}
+      \mathbb P\left(\max|Y_i| \ge \Delta \cdot \frac{tk}{\epsilon}\right) = 1 - \left(1 - e^{-t}\right)^k \le ke^{-t}.
+    \end{split}
+  \]
+  现在令$\beta = ke^{-t}$, 将$t = \log(k/\beta)$代入$\Delta\cdot (tk)/\epsilon$即得\eqref{eq:Laplace机制I_精确性alpha}. \eqref{eq:Laplace机制II_精确性alpha}的证明是类似的.
+\end{proof}
+
+由命题\ref{prop:Laplace机制的alpha,beta精确性}可以发现, 查询的敏感度与Laplace机制的精确性呈线性关系, 因此, 为了保证隐私机制的有效性, 我们通常考虑低敏感性的查询, 其中线性查询(定义)是非常重要的一类低敏感性查询.
+\begin{defn}[线性查询]\label{defn:线性查询}
+  给定隐私数据库$D \in \mathcal{X}^n$, 查询$f\colon \mathcal{X} \to \mathbb R$, 称
+  \[
+  q_f(D) \triangleq \frac{1}{n} \sum_{\mathbf{x}\in D} f(\mathbf{x})
+  \]
+  为线性查询, 其中$\mathbf{x}$为$D$中的某一行观测.
+\end{defn}
+对于线性查询, 记原查询的敏感性为$\Delta$, 则线性查询的敏感度为$\Delta/n$, 由命题\ref{prop:Laplace机制的alpha,beta精确性}知, 针对线性查询的$\epsilon$-差分隐私 Laplace 机制的准确性$\alpha = O(k/n)$; $(\epsilon, \delta)$-差分隐私 Laplace 机制的准确性$\alpha = O \left(\sqrt{k}/n\right)$. 在实际应用中, 我们要求$\alpha = o(1)$, 因此, 为了达到可用的精确度标准, Laplace 机制的关于线性查询的查询规模至多达到$O(n^2)$, 超过这一量级, 机制无法同时保证差分隐私以及足够的精确性, 这也是 Laplace 机制最明显的限制, 在线性查询下, Laplace 机制需要增加一个有效查询数目的阈值, 即机制只能回答前$O(n^2)$个查询, 其余查询将拒绝回答. 近年来, \parencite{chen2012integrating} 根据 Laplace 机制已经回答的查询对其余查询进行基于最大熵方法的估计, 在保证隐私的情况下提供了一种 Laplace 机制的回调(fallback).
+
+回顾子集求和查询, 定理\ref{thm:明显的隐私破坏}说明, 对于所有$k = 2^n$个子集求和查询, 只需要在查询的输出上添加$O\left(\log(k)\right)$的噪音就足够了, 而根据 Laplace 机制, 我们需要在输出上添加$O\left(\sqrt{k}\right)$的噪音, 这就对 Laplace 机制查询规模造成了严重的限制. 注意到所有子集求和查询尽管有$2^n$ ------ 指数多个, 但其中的所有查询都可以被示性函数表出, 从统计学习理论的角度来看, 这些查询作为一个函数类, 其VC-维度(VC Dimension)至多是$n$, 这个观察启示我们, Laplace 机制不考虑查询类的结构信息, 而单纯使用组合定理来增加噪音会造成某种浪费. 对此, 在\parencite{dwork_calibrating_2006}的基础上, \parencite{mcsherry2007mechanism}明确提出了指数机制.
+
+\begin{algorithm}[htbp]
+  \caption{指数机制}\label{alg:指数机制}
+  \begin{algorithmic}[1]
+    \REQUIRE 隐私数据库$D$, 评价函数$q\colon (\mathcal{X}^n, R) \to \mathbb R$, 隐私参数$\epsilon$.
+    \ENSURE 机制结果$r \in R$.
+    \STATE 计算$\Delta = \max_{r\in R} S(q(\cdot, r))$
+    \STATE 在$R$中按照以下概率分布抽取$r$:
+    \[
+      \mathbb P(Y = r) \sim \exp\left(\frac{\epsilon q(D, r)}{2\Delta}\right)
+    \]
+    \RETURN $r$
+  \end{algorithmic}
+\end{algorithm}
+\begin{thm}[指数机制的隐私性]\label{thm:指数机制的隐私性}
+  算法\ref{alg:指数机制}定义的指数机制$\mathcal{M}$保证$\epsilon$-差分隐私.
+\end{thm}
+\begin{proof}
+  根据定义, 对任意相邻数据库$D, D'$以及$r\in R$, 有
+  \[
+    \begin{split}
+      \frac{\mathbb{P}(\mathcal{M}(D) = r)}{\mathbb{P}(\mathcal{M}(D') = r)} = \frac{\frac{\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)}{\sum_{r\in R} \exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)}}{\frac{\exp\left(\epsilon \frac{q(D', r)}{2\Delta}\right)}{\sum_{r\in R} \exp\left(\epsilon \frac{q(D', r)}{2\Delta}\right)}} = A \cdot B,
+    \end{split}
+  \]
+  其中, 
+  \begin{align*}
+    A &= \frac{\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)}{\exp\left(\epsilon \frac{q(D', r)}{2\Delta}\right)} = \exp\left(\frac{\epsilon(q(D, r) - q(D', r))}{2\Delta}\right) \\
+    & \le \exp\left(\frac{\epsilon\Delta}{2\Delta}\right) = \exp\left(\frac{\epsilon}{2}\right), \\
+    B &= \frac{\sum_{r\in R}\exp\left(\epsilon \frac{q(D', r)}{2\Delta}\right)}{\sum_{r\in R}\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)} \le \frac{\sum_{r\in R}\exp\left(\epsilon \frac{q(D', r) + \Delta}{2\Delta}\right)}{\sum_{r\in R}\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)} \\
+    &= \frac{\exp(\frac{\epsilon}{2}) \sum_{r\in R}\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)}{\sum_{r\in R}\exp\left(\epsilon \frac{q(D, r)}{2\Delta}\right)} = \exp\left(\frac{\epsilon}{2}\right).
+  \end{align*}
+  从而,
+  \[
+    \frac{\mathbb{P}(\mathcal{M}(D) = r)}{\mathbb{P}(\mathcal{M}(D') = r)} \le e^\epsilon. \qedhere
+  \]
+\end{proof}
+\begin{note}
+  给定查询$f$, 令指数机制$\mathcal{M}$中的评价函数$q(D, r) = - |f(D) - r|$, 则机制$\mathcal{M}$就是例子\ref{exa:单个查询的Laplace机制}给出的单个查询的 Laplace 机制. 事实上, 对任意隐私机制$\mathcal{M}$, 令$q(D, r) = \log\mathbb P(\mathcal{M}(D) = r) $, 则对应的指数机制就是$\mathcal{M}$.
+\end{note}
+对于指数机制而言, 精确性由评价函数刻画, 对任意$D \in \mathcal{X}^n$, 考虑误差
+\[
+  \left|\max_{r\in R}q(D, r) - q(D, \mathcal{M}(D))\right| = \max_{r\in R}q(D, r) - q(D, \mathcal{M}(D)),
+\]
+则当$|R|<\infty$时, 有以下精确性刻画.
+\begin{thm}[指数机制精确性]\label{thm:指数机制精确性}
+  对于指数机制$\mathcal{M}$, 沿用算法\ref{alg:指数机制}的记号, 设$|R| < \infty$, 并记$R^* = \{r\in R, q(D, r) = \max_{r\in R}q(D, r) \}$, 则有
+  \[
+    \mathbb P\left(\left|\max_{r\in R}q(D, r) - q(D, \mathcal{M}(D))\right| \le \frac{2\Delta}{\epsilon}\left(\log\frac{|R|}{|R^*|} + t\right)\right) \ge 1 - e^{-t}.
+  \]
+\end{thm}
+\begin{proof}
+  记$q^* = \max_{r\in R}q(D, r)$, 命题等价于
+  \[
+    \mathbb P\left(q(D, \mathcal{M}(D)) \le q^* - \frac{2\Delta}{\epsilon}\left(\log\frac{|R|}{|R^*|} + t\right)\right) \le e^{-t}.
+  \]
+  记$ x = q^* - \frac{2\Delta}{\epsilon}\left(\log\frac{|R|}{|R^*|} + t\right)$, 则有
+  \begin{align*}
+    \mathbb P(q(D, \mathcal{M}(D)) \le x) &\le \frac{\mathbb P(q(D, \mathcal{M}(D)) \le x)}{\mathbb P(q(D, \mathcal{M}(D)) \le q^*)} \le \frac{|R|\exp(\frac{\epsilon x}{2\Delta})}{|R^*|\exp(\frac{\epsilon q^*}{2\Delta})} \\
+    &= \frac{|R|}{|R^*|}\exp\left(\frac{\epsilon(x - q^*)}{2\Delta}\right) = \frac{|R|}{|R^*|}\exp\left(-\log\frac{|R|}{|R^*|} - t\right) \\
+    &= e^{-t}. \qedhere
+  \end{align*}
+\end{proof}
+% section 精确性与查询规模 (end)
+\section{合成数据库} % (fold)
+\label{sec:合成数据库}
+在前几节中, 我们考虑敏感数据集$D \in \mathcal{X}^n$, 其中$n$是给定的一个正整数, 现在我们记$\mathcal{X}^{\mathbb N} = \cup_{n=1}^\infty \mathcal{X}^n$, 以讨论观测数不同但属性相同的数据集.
+\begin{defn}[合成数据库]\label{defn:合成数据库}
+  称机制$\mathcal{M}\colon\mathcal{X}^{\mathbb N}\to\mathcal{X}^{\mathbb N}$输出合成数据库, 若对于任意数据库$D$的查询$f$, 我们使用$f(\mathcal{M}(D))$作为对查询$f(D)$的隐私回答, 其中用户可以获取$\mathcal{M}(D)$.
+\end{defn}
+根据定义\ref{defn:合成数据库}, 合成数据库实际上是一种对大量查询回答的表示. 回顾定理\ref{thm:明显的隐私破坏}中定义的机制$\mathcal{M}$, $\mathcal{M}$的输出就是合成数据库, 尽管攻击者可以从该合成数据库中重构原始数据库, 但合成数据库的定义与隐私性保证是独立的. 与返回扰动的输出结果相比, 合成数据库在实际中将更为可用: 敏感数据的持有者不用维护一个实时的对查询输出进行扰动的外部访问接口, 而只需要在隐私设定下运行一次隐私机制输出合成数据库, 该合成数据库就可以公布并保证数据库个体的隐私. 指数机制可以很容易地转化成输出合成数据库的隐私机制, 在介绍\parencite{blum2013learning}提出的网络机制以前, 先给出网络定义.
+\begin{defn}[$\alpha$-网络]\label{defn:alpha-网络}
+  给定数据集的域$\mathcal{X}$与一组查询$Q$, 称$N \subset \mathcal{X}^{\mathbb N}$是$Q$上的$\alpha$-网络, 若对所有$D\in\mathcal{X}^{\mathbb N}$, 存在$D' \in N$, 使得
+  \[
+    \max_{f\in Q}|f(D) - f(D')| \le \alpha.
+  \]
+  记$N_\alpha(Q)$为$Q$的最小$\alpha$-网络. 
+\end{defn}
+\begin{algorithm}[hbtp]
+  \caption{网络机制(Net Mechanism)}\label{alg:网络机制}
+  \begin{algorithmic}
+    \REQUIRE 敏感数据库$D$, 查询类$Q$, 隐私设定$\epsilon$, 精确性设定$\alpha$.
+    \ENSURE 合成数据库$D'$
+    \STATE 令评价函数$q\colon \mathcal{X}^{\mathbb N} \times N_\alpha(Q) \to \mathbb R$定义为
+    \[
+      q(D, D') = -\max_{f\in Q}|f(D) - f(D')|.
+    \]
+    \STATE 对$(D, q, \epsilon)$, 使用指数机制输出$D'$.
+    \RETURN $D'$.
+  \end{algorithmic}
+\end{algorithm}
+\begin{thm}[网络机制的隐私性与精确性]\label{thm:网络机制的隐私性与精确性}
+  对敏感数据集$D$, 隐私参数$\epsilon$, 精确性设定$\alpha$记算法\ref{alg:网络机制}定义的网络机制为$\mathcal{M}$, 对查询类$Q$, 记$Q(\mathcal{M})$为机制: 
+  \[
+    \forall\,f\in Q,\, \text{返回$f(\mathcal{M}(D))$}. 
+  \]
+  则以下命题成立.
+  
+  1) $\mathcal{M}$保证$\epsilon$-差分隐私.
+  
+  2) $Q(\mathcal{M})$保证$(2\alpha, \beta)$-精确性, 其中
+    \[
+      \beta = |N_\alpha(Q)|\exp\left(-\frac{\alpha\epsilon}{2\Delta}\right),\, \Delta = \max_{f\in Q} S(f).
+    \]
+\end{thm}
+\begin{proof}
+  1)是显然的, 这是由于指数机制保证$\epsilon$-差分隐私(定理\ref{thm:指数机制的隐私性}).
+  
+  下证2), 记$\hat{D} = \mathcal{M}(D)$, 由定理\ref{thm:指数机制精确性}, 注意到定理中的$|R^*|\ge 1$, 于是我们有
+  \[
+    \mathbb P\left(q(D, \hat{D})\le q^* - \frac{2\Delta}{\epsilon}(\log|R| + t)\right) \le e^{-t},
+  \]
+  根据$\alpha$-网络定义, $q^*\ge -\alpha, R = N_\alpha(Q)$, 于是取$t$使得$\alpha = \frac{2\Delta}{\epsilon}(\log|R| + t)$, 由评价函数$q$定义(算法\ref{alg:网络机制}), 得
+  \[
+    \mathbb P\left(\max_{f\in Q}|f(D) - f(\hat{D})|\ge 2\alpha \right) \le |N_\alpha(Q)|\exp\left(-\frac{\alpha\epsilon}{2\Delta}\right). \qedhere
+  \]
+\end{proof}
+定理\ref{thm:网络机制的隐私性与精确性}中的$|N_\alpha(Q)|$并不容易确切计算. 应用统计学习的理论, 我们可以用VC-维度来给出阶估计.
+\begin{lem}[$|N_\alpha(Q)|$的阶估计, \parencite{Vapnik1998}]\label{lem:N_alpha_Q阶估计}
+  给定查询集合$Q$与$\alpha > 0$, 
+  \[
+    N_\alpha(Q) = O\left(\mathrm{VCDIM}(Q)\log(\frac{2}{\alpha})/\alpha^2\right),
+  \]
+  其中$\mathrm{VCDIM}(\cdot)$为VC-维度.
+\end{lem}
+由引理\ref{lem:N_alpha_Q阶估计}, 我们可以得到网络机制的精确性阶估计.
+\begin{thm}[网络机制精确性阶估计, \parencite{blum2013learning}]\label{thm:网络机制精确性阶估计}
+  给定查询$Q$, 数据域$\mathcal{X}$满足$|\mathcal{X}|<\infty$, 则对网络机制$\mathcal{M}$, $Q(\mathcal{M})$满足$(\alpha, \beta)$-精确性, 其中
+  \[
+    \alpha = \tilde{O}\left(\left(\frac{\log|\mathcal{X}|\log|Q|}{n}\right)^{\frac{1}{3}}\right). 
+  \]
+\end{thm}
+下面我们考察一类特殊的线性查询$q_\phi$, 其中$\phi = I(\text{$\mathbf{x}$具有某属性$p$})$, $I(\cdot)$为示性函数, 称这类查询为计数查询. 对计数查询, 我们有
+\begin{thm}[计数查询的$\alpha$-网络大小, \parencite{blum2013learning}]\label{计数查询的alpha-网络大小}
+  给定$\phi$, 对任意有限个计数查询类$Q$, 有
+  \[
+    |N_\alpha(Q)| \le |\mathcal{X}|^{\frac{\log|Q|}{\alpha^2}}.
+  \]
+\end{thm}
+\begin{prop}[网络机制在计数查询上的精确性]\label{prop:网络机制在计数查询上的精确性}
+  对于$k$个计数查询$Q$, 网络机制$\mathcal{M}$, 机制$Q(\mathcal{M})$满足$(2\alpha, \beta)$-精确性, 其中
+  \[
+    \beta = |\mathcal{X}|^{\frac{\log k}{\alpha^2}}\exp\left(-\frac{n\alpha\epsilon}{2}\right).
+  \]
+\end{prop}
+\begin{proof}
+  注意到计数查询是一种特殊的线性查询, 从而敏感性$\Delta = \frac{1}{n}$, 综合定理\ref{thm:网络机制的隐私性与精确性}与定理\ref{计数查询的alpha-网络大小}立得.
+\end{proof}
+
+现在对比网络机制的精确性(命题\ref{prop:网络机制在计数查询上的精确性})与Laplace机制的精确性(命题\ref{prop:Laplace机制的alpha,beta精确性}), 网络机制允许$O(e^n)$个计数查询并保证$o(1)$量级的精确性, 而Laplace机制只能允许$O(n^2)$个计数查询. 因此, 网络机制通过$\alpha$-网络刻画了查询类的结构, 从而克服了Laplace机制的查询次数受限的缺点. 并且, 网络机制输出的是合成数据库, 在实际应用中更加方便.
+
+然而, 由算法\ref{alg:指数机制}可以看出, 包括网络机制在内的指数机制并不是有效的, 即运行时间达到或者超过$O(e^n)$, 这是由于生成概率分布需要遍历所有$\mathcal{X}^n\times R$的元素. 而Laplace机制虽然查询次数受限, 但Laplace机制是多项式时间可解的. 进一步地, \parencite{ullman2013answering}证明了任何回答超过$O\left(n^{2+o(1)}\right)$计数查询并输出合成数据库的机制都是多项式时间不可解的. 事实上, 与输出扰动的查询回答比起来, 效率地输出合成数据库是非常困难的, \parencite{ullman2011pcps}证明了对于非常简单的两参数查询, 输出合成数据库的隐私算法都是多项式时间不可解的\footnote{\parencite{ullman2011pcps}与\parencite{ullman2013answering}的结果都需要假定单向函数(One-way function)的存在性. 称函数$f\colon\{0, 1\}^{\mathbb N} \to \{0, 1\}^{\mathbb N}$为单向函数当且仅当$f$本身可以用一个多项式时间的算法计算, 但对于任意一个以$x$为输入的随机多项式时间算法$A$, 任意一个多项式$p(n)$以及充分大的$n$, 有
+\[
+  \mathbb P_{x\in\{0, 1\}^n} \left(f(A(f(x))) = f(x)\right) < \frac{1}{p(n)}.
+\]
+单向函数的存在性仍然是一个开放的问题.}. 这些结果都表明, 一个查询规模指数大、对查询有精确性保证、高效、输出合成数据库的隐私机制是非常有价值的, 这也是本文将要讨论的重点.
+% section 合成数据库 (end)
+% chapter 背景 (end)

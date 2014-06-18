@@ -1,0 +1,23 @@
+\begin{cabstract}
+  我们在过去的几十年间见证了机器学习的兴起与互联网的发展. 一方面, 机器学习从公开数据库中获取了许多有益的信息, 另一方面, 数据库的公开使得数据个体隐私受到了侵扰. 社交网络的兴起更是对隐私问题提出了严峻的挑战, 这使我们有必要开发一种保护隐私的机器学习方法. 
+  
+  在实际中常用的数据匿名化并不能保证个体的隐私, 恶意用户可以借助辅助信息从匿名化数据中重建原始信息. 差分隐私从定义上保证了恶意用户无法通过辅助信息来进行隐私攻击, 随后人们还发现差分隐私有许多非常好的性质. 我们回顾了差分隐私的基础知识与Laplace机制, 介绍了从简单隐私机制构造复杂隐私机制所用到的组合定理. 由于 Laplace 机制回答问题规模非常有限,  我们介绍了可以回答指数多个问题的指数机制与网络机制, 其中后者还可以输出在实际中非常方便的合成数据库. 
+  
+  尽管如此, 指数机制与网络机制都不是高效的, 而对于输出合成数据库的隐私算法这一问题而言, 人们已经发现了部分问题是多项式时间不可解的. 我们受到三角多项式逼近的启发, 给出了一个针对光滑查询输出合成数据库的高效的三角隐私机制. 我们将查询集合限制在光滑查询以突破已有的多项式时间不可解的结果限制.
+  
+  该机制除了隐私保证以外, 还提供了良好的精确性保证. 特别地, 对于高度光滑的查询, 给定观测数为$n$的数据库, 机制将保证$O\left(n^{-1}\right)$的精确性, 而现有的网络算法仅能保证$O\left(n^{-1/3}\right)$的精确性. 我们进一步采用抽样方法改善了三角机制的实际运行时间, 同时使用隐私主成分分析来弥补部分精确性损失. 这里我们回顾了隐私主成分分析并给出一个更强的收敛定理. 
+  
+  最后, 我们使用改进的机制在几个数据集上进行了实验. 以Gauss 核函数查询的线性组合作为查询, 比较原始数据库与合成数据库, 从而考察三角机制的精确性. 在这些数据集中, 三角机制体现了高速的运行速度, 且机制的最坏情形误差是可以接受的. 我们还探讨了机制中的部分预先设定的参数对机制性能的影响, 实验结果表明, 机制存在一个最优的椭圆半径缩放系数, 但 PCA 的输出维度对机制性能的影响是不定的. 
+\end{cabstract}
+
+\begin{eabstract}
+  The past decades has seen the emergence of {\itshape Machine Learning} and the rise of Internet. However, there has been conflict between the benefit of learning public data set and the breach of data privacy on the other. Furthermore, the privacy issues are getting critical due to the online social services, which stresses the need for a privacy-preserving manner of machine learning.
+  
+  Data anonymization, though popular in the practical use, cannot protect the data set from attack with auxiliary information. Thus Differential Privacy, naturally immune to attack of such kind, was introduced and later proved to have many favorable properties. We review the fundamentals of differential privacy including Laplace mechanism, and then introduce composition theorem that enables one to construct complicated mechanism from several simple mechanisms. We also review the exponential mechanism and net mechanism, both of which can answer exponentially large number of queries on the size of data set while the Laplace mechanism can only answer quadratic number of queries. Compared to exponential mechanism, the net mechanism outputs synthetic database, especially convenient for practical use.
+  
+  However, both the exponential mechanism and net mechanism is inefficient, and there are some hardness results for the mechanism with synthetic database output. Inspired by trigonometric polynomial approximation, we propose an efficient mechanism, namely trigonometric mechanism, answering the class of smooth queries with synthetic database output. The query class is restricted on smooth queries to circumvent the hardness result. 
+  
+  Besides privacy guarantee, we also offer decent accuracy guarantee. Particularly, for highly smooth queries, given database with the size of $n$, the accuracy can be even improved to $O\left(n^{-1}\right)$ compared to existing net mechanism with the accuracy of $O\left(n^{-1/3}\right)$. We further accelerate the mechanism via sampling technique and incorporate private PCA to compensate for accuracy loss. Hence we revisit the private PCA and prove a stronger version of the convergence between eigenvectors, eigenvalues and corresponding private estimators. 
+  
+  Last, we conduct experiments of the improved mechanism on several databases. Specifically, we test each output synthetic database against original one on the accuracy of answering linear mixtures of Gaussian Kernel queries. The reported worst-case error is acceptable with blazing fast running time. We further explore the relations between performance and some pre-specified parameters. The results imply the existence of optimal PCA ellipsoid scaling ratio as well as the subtlety of performance impact from PCA dimension threshold.
+\end{eabstract}
