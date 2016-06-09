@@ -346,7 +346,7 @@ O\left(k\epsilon^2 + \min\left\{\sqrt{k\epsilon^2\log(1/\delta')}, \epsilon\log(
   \]
   为线性查询, 其中$\mathbf{x}$为$D$中的某一行观测.
 \end{defn}
-对于线性查询, 记原查询的敏感性为$\Delta$, 则线性查询的敏感度为$\Delta/n$, 由命题\ref{prop:Laplace机制的alpha,beta精确性}知, 针对线性查询的$\epsilon$-差分隐私 Laplace 机制的准确性$\alpha = O(k/n)$; $(\epsilon, \delta)$-差分隐私 Laplace 机制的准确性$\alpha = O \left(\sqrt{k}/n\right)$. 在实际应用中, 我们要求$\alpha = o(1)$, 因此, 为了达到可用的精确度标准, Laplace 机制的关于线性查询的查询规模至多达到$O(n^2)$, 超过这一量级, 机制无法同时保证差分隐私以及足够的精确性, 这也是 Laplace 机制最明显的限制, 在线性查询下, Laplace 机制需要增加一个有效查询数目的阈值, 即机制只能回答前$O(n^2)$个查询, 其余查询将拒绝回答. 近年来, \parencite{chen2012integrating} 根据 Laplace 机制已经回答的查询对其余查询进行基于最大熵方法的估计, 在保证隐私的情况下提供了一种 Laplace 机制的回调(fallback).
+对于线性查询, 记原查询的敏感性为$\Delta$, 则线性查询的敏感度为$\Delta/n$, 由命题\ref{prop:Laplace机制的alpha,beta精确性}知, 针对线性查询的$\epsilon$-差分隐私 Laplace 机制的准确性$\alpha = O(k/n)$; $(\epsilon, \delta)$-差分隐私 Laplace 机制的准确性$\alpha = O \left(\sqrt{k}/n\right)$. 在实际应用中, 我们要求$\alpha = o(1)$, 因此, 为了达到可用的精确度标准, Laplace 机制的关于线性查询的查询规模至多达到$O(n^2)$, 超过这一量级, 机制无法同时保证差分隐私以及足够的精确性, 这也是 Laplace 机制最明显的限制, 在线性查询下, Laplace 机制需要增加一个有效查询数目的阈值, 即机制只能回答前$O(n^2)$个查询, 其余查询将拒绝回答. 近年来, \parencite{chen2012integrating} 根据 Laplace 机制已经回答的查询对其余查询进行基于最大熵方法的估计, 在保证隐私的情况下提供了一种 Laplace 机制的备用(fallback).
 
 回顾子集求和查询, 定理\ref{thm:明显的隐私破坏}说明, 对于所有$k = 2^n$个子集求和查询, 只需要在查询的输出上添加$O\left(\log(k)\right)$的噪音就足够了, 而根据 Laplace 机制, 我们需要在输出上添加$O\left(\sqrt{k}\right)$的噪音, 这就对 Laplace 机制查询规模造成了严重的限制. 注意到所有子集求和查询尽管有$2^n$ ------ 指数多个, 但其中的所有查询都可以被示性函数表出, 从统计学习理论的角度来看, 这些查询作为一个函数类, 其VC-维度(VC Dimension)至多是$n$, 这个观察启示我们, Laplace 机制不考虑查询类的结构信息, 而单纯使用组合定理来增加噪音会造成某种浪费. 对此, 在\parencite{dwork_calibrating_2006}的基础上, \parencite{mcsherry2007mechanism}明确提出了指数机制.
 
