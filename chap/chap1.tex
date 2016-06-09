@@ -52,7 +52,11 @@
   则机制$\mathcal{M}$保证$\epsilon$-差分隐私.
 \end{example}
 \begin{proof}
-  根据 Laplace 分布性质, 任取$x, x' \in \mathbb R$, 对$\mathrm{Lap}(\sigma)$, 概率密度$h$满足 $h(x)/h(x') \le \exp ( | x - x'| / \sigma)$. 类似地对 $\mathbf{y}, \mathbf{y}' \in\mathbb R^d$, 联合密度 $h(\mathbf{y})/h(\mathbf{y}') \le \exp( \|\mathbf{y} - \mathbf{y}'\|_1 / \sigma)$. 根据$\epsilon$-差分隐私定义, 
+  根据 Laplace 分布性质, 任取$x, x' \in \mathbb R$, 对$\mathrm{Lap}(\sigma)$, 概率密度$h$满足
+  \[
+  h(x)/h(x') \le \exp ( | x - x'| / \sigma).
+  \]
+  类似地对 $\mathbf{y}, \mathbf{y}' \in\mathbb R^d$, 联合密度 $h(\mathbf{y})/h(\mathbf{y}') \le \exp( \|\mathbf{y} - \mathbf{y}'\|_1 / \sigma)$. 根据$\epsilon$-差分隐私定义, 
   \[
   \begin{split}
     \frac{\mathbb{P}(f(D) + \mathbf{Y} = \mathbf{t})}{\mathbb{P}(f(D') + \mathbf{Y} = \mathbf{t})} &=  \frac{\mathbb{P}(\mathbf{Y} = \mathbf{t} - f(D))}{\mathbb{P}(\mathbf{Y} = \mathbf{t} - f(D'))} \\
@@ -255,7 +259,15 @@
   
   当$\delta > 0$时, 应用定理\ref{thm:稠模型定理}立得.
 \end{proof}
-值得一提的是, 定理\ref{thm:组合定理II}中的隐私参数仅仅是$k$-倍自择组合实验隐私参数的上界, \parencite{oh2013composition} 给出了组合实验隐私参数的上确界. 与\ref{thm:组合定理II}相比, \parencite{oh2013composition}将$\epsilon' = O\left(k\epsilon^2 + \sqrt{k\epsilon^2\log(1/\delta')}\right)$改进到$O\left(k\epsilon^2 + \min\left\{\sqrt{k\epsilon^2\log(1/\delta')}, \epsilon\log(\epsilon/\delta')\right\}\right)$, 并将组合实验的$\delta$由$k\delta + \delta'$改进到$1 - (1-\delta)^k(1 - \delta')$.
+值得一提的是, 定理\ref{thm:组合定理II}中的隐私参数仅仅是$k$-倍自择组合实验隐私参数的上界, \parencite{oh2013composition} 给出了组合实验隐私参数的上确界. 与\ref{thm:组合定理II}相比, \parencite{oh2013composition}将
+\[
+\epsilon' = O\left(k\epsilon^2 + \sqrt{k\epsilon^2\log(1/\delta')}\right)
+\]
+改进到
+\[
+O\left(k\epsilon^2 + \min\left\{\sqrt{k\epsilon^2\log(1/\delta')}, \epsilon\log(\epsilon/\delta')\right\}\right),
+\]
+并将组合实验的$\delta$由$k\delta + \delta'$改进到$1 - (1-\delta)^k(1 - \delta')$.
 
 定理\ref{thm:组合定理II}可以导出保证$(\epsilon, \delta)$-差分隐私的 Laplace 机制.
 
@@ -482,7 +494,7 @@
   \]
 \end{prop}
 \begin{proof}
-  注意到计数查询是一种特殊的线性查询, 从而敏感性$\Delta = \frac{1}{n}$, 综合定理\ref{thm:网络机制的隐私性与精确性}与定理\ref{计数查询的alpha-网络大小}立得.
+  注意到计数查询是一种特殊的线性查询, 从而敏感性$\Delta = 1/n$, 综合定理\ref{thm:网络机制的隐私性与精确性}与定理\ref{计数查询的alpha-网络大小}立得.
 \end{proof}
 
 现在对比网络机制的精确性(命题\ref{prop:网络机制在计数查询上的精确性})与Laplace机制的精确性(命题\ref{prop:Laplace机制的alpha,beta精确性}), 网络机制允许$O(e^n)$个计数查询并保证$o(1)$量级的精确性, 而Laplace机制只能允许$O(n^2)$个计数查询. 因此, 网络机制通过$\alpha$-网络刻画了查询类的结构, 从而克服了Laplace机制的查询次数受限的缺点. 并且, 网络机制输出的是合成数据库, 在实际应用中更加方便.

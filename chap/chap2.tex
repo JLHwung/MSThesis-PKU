@@ -431,7 +431,7 @@ O \left(\frac{\overline{n}^{1.5}\overline{m}^{1.5}}{\ln \overline{m}}\overline{L
 \left(\log\frac{1}{\delta}\right) ^{-\frac{2d+2K+1}{3d+2K}} \right)$.
 \end{thm}
 \begin{proof}
-  证明与定理\ref{thm:epsilon_差分隐私机制}的证明是完全类似的, 我们在算法\ref{alg:三角机制II}第\ref{alg:line:三角机制II参数设定}行设定了与算法\ref{alg:三角机制I}第\ref{alg:line:三角机制I参数设定}不同的参数, 将这些参数以及噪音规模$\frac{\sqrt{2t^d\log\frac{1}{\delta}}}{n \epsilon}$代入到定理\ref{thm:epsilon_差分隐私机制}的证明过程立得. 
+  证明与定理\ref{thm:epsilon_差分隐私机制}的证明是完全类似的. 对照算法\ref{alg:三角机制I}第\ref{alg:line:三角机制I参数设定}行与算法\ref{alg:三角机制II}第\ref{alg:line:三角机制II参数设定}行的参数设定, 将后者的参数以及噪音规模$\frac{\sqrt{2t^d\log\frac{1}{\delta}}}{n \epsilon}$代入到定理\ref{thm:epsilon_差分隐私机制}的证明过程立得. 
 \end{proof}
 % section _epsilon_delta_差分隐私机制 (end)
 \section{与网络机制的性能对比} % (fold)
@@ -472,7 +472,7 @@ O \left(\frac{\overline{n}^{1.5}\overline{m}^{1.5}}{\ln \overline{m}}\overline{L
 h(\mathbf{x})= \begin{cases} \exp \left(1-\frac{1}{1-\|\mathbf{x}\|_2^2} \right),& \|\mathbf{x}\|_2 \leq 1, \\ 0,& \text{其他}. \end{cases}
 \]
 
-显然 $h(\mathbf{x})\in C^{\infty}(\mathbb{R}^d)$, 且$h(\mathbf{x}) \in [0,1]$. 对任意非负整数$d$-元组$\mathbf{k}=(k_1,\ldots,k_d)$, 当$\|\mathbf{x}\|\geq 1$时, 有 $D^{\mathbf{k}} h(\mathbf{x})=0$. 由于 $h$ 所有偏导数是连续的且支集有界, 可定义
+显然 $h\in C^{\infty}(\mathbb{R}^d)$, 且$h(\mathbf{x})$的值域是$[0,1]$. 对任意非负整数$d$-元组$\mathbf{k}=(k_1,\ldots,k_d)$, 当$\|\mathbf{x}\|\geq 1$时, 有 $D^{\mathbf{k}} h(\mathbf{x})=0$. 由于 $h$ 所有偏导数是连续的且支集有界, 可定义
 \begin{equation*}
 M_K \triangleq \max_{|\mathbf{k}|\leq K}\max_\mathbf{x} |D^{\mathbf{k}} h(\mathbf{x})|.
 \end{equation*}
