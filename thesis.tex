@@ -5,7 +5,6 @@
 %   texdoc biblatex-caspervector
 % 调出。
 
-% 在黑白打印时彩色链接可能变成浅灰色，此时可将“colorlinks”改为“nocolorlinks”。
 % 北大图书馆要求上传的电子版论文中目录采用黑色字体，可以用同样的方法处理。
 %
 % 采用了自定义的（包括大小写不同于原文件的）字体文件名，
@@ -13,9 +12,9 @@
 % 其它用户不用加入 nofonts 选项，加入之后反而会产生错误。
 
 % 草稿模式
-% \documentclass[UTF8, colorlinks, adobefonts, CheckSingle, CJKnumber, draft]{pkuthss}
+% \documentclass[UTF8, colorlinks, CheckSingle, pkufont = false, draft]{pkuthss}
 % 截稿
-\documentclass[UTF8, colorlinks, adobefonts, CheckSingle]{pkuthss}
+\documentclass[UTF8, colorlinks, CheckSingle, pkufont = false]{pkuthss}
 
 % 使用 biblatex 排版参考文献，并规定其格式。
 %
@@ -28,17 +27,18 @@
 % 若需要按照英文文献在前，中文文献在后排序，请设置“sorting = ecnty”；
 % 若需要按照中文文献在前，英文文献在后排序，请设置“sorting = centy”。
 \usepackage[backend = biber, style = caspervector, utf8, sorting = none, arxiv = pdf]{biblatex}
-\usepackage[svgnames]{xcolor}
 % 产生 originauth.tex 里的 \square。
+\let\openbox\relax
 \usepackage{algorithm, algorithmic, amsbsy, amsmath, amssymb, amsthm, caption, CJKnumb, listings, multirow, titlesec, titletoc, url}
+\let\endopenbox\relax
   
 % Overwrite ctex-xecjk-fontset
-\setCJKmainfont{FZNewShuSong-Z10}
-\setCJKsansfont[BoldFont=Lantinghei SC Demibold]{Lantinghei SC Extralight}
-\setCJKmonofont{Adobe Fangsong Std}
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
 
-\setCJKfamilyfont{zhhei}[BoldFont=Lantinghei SC Demibold]{Lantinghei SC Extralight}
-\setCJKfamilyfont{zhsong}{FZNewShuSong-Z10}
+\setCJKfamilyfont{zhhei}{Noto Sans CJK SC}
+\setCJKfamilyfont{zhsong}{Noto Serif CJK SC}
 \setCJKfamilyfont{zhfs}{Adobe Fangsong Std}
 \setCJKfamilyfont{zhkai}{Kaiti SC}
 
