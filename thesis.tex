@@ -31,7 +31,7 @@
 \let\openbox\relax
 \usepackage{algorithm, algorithmic, amsbsy, amsmath, amssymb, amsthm, caption, CJKnumb, listings, multirow, titlesec, titletoc, url}
 \let\endopenbox\relax
-  
+
 % Overwrite ctex-xecjk-fontset
 \setCJKmainfont{Noto Serif CJK SC}
 \setCJKsansfont{Noto Sans CJK SC}
@@ -47,7 +47,7 @@
 \renewcommand{\songti}{\CJKfamily{zhsong}}
 % 定义空翻页 % Hack from fancyhdr
 \let\origdoublepage\cleardoublepage
-\newcommand{\clearemptydoublepage}{ 
+\newcommand{\clearemptydoublepage}{
   \clearpage
   {\pagestyle{empty}\origdoublepage}
 }
@@ -92,7 +92,7 @@
 \begin{document}
   % 全局样式
   \linespread{1.428571} % 20/14
-  
+
   % 目录
   \titlecontents{chapter}[4em]
   {\vspace{\topsep}}
@@ -102,13 +102,13 @@
   {}
   {\rmfamily\contentslabel{2.5em}}
   {\hspace*{-2.5em}}{\titlerule*[1pc]{.}\rmfamily\contentspage}
-  
+
   % 章节标题
   \titleformat{\chapter}[hang]
   {\vspace{40pt}\normalfont\heiti\bfseries\zihao{1}\centering}
   {第\CJKnumber{\arabic{chapter}}章}
   {1em}{}
-  
+
   \titleformat{\section}[hang]
   {\normalfont\heiti\bfseries\zihao{3}}
   {\thesection}{1em}{}
@@ -152,7 +152,7 @@
   \theoremstyle{Cremark}
   \newtheorem*{note}{注}
   \renewcommand{\proofname}{\normalfont\CJKfamily{zhhei}\bfseries{证明}}
-  
+
   % 算法样式
   \makeatletter
   \newcommand{\setalglineno}[1]{
@@ -167,7 +167,7 @@
   \newcommand{\NOTATION}{\item[\algorithmicnotation]}
   \newcommand{\INTERFACE}{\item[\algorithmicinterface]}
   \renewcommand{\algorithmicreturn}{返回:}
-  
+
   %图表公式样式、编号
   \makeatletter
   \@addtoreset {equation}{chapter}
@@ -182,7 +182,7 @@
   % Caption 样式
   \renewcommand{\captionfont}{\CJKfamily{zhkai}}
   \renewcommand{\captionlabelfont}{\CJKfamily{zhkai}}
-  
+
 	% 以下为正文之前的部分。
 	\frontmatter
 
@@ -204,8 +204,8 @@
 	\include{chap/introduction}
 	% 各章节。
 	\include{chap/chap1}
-  \include{chap/chap2}
-  \include{chap/chap3}
+    \include{chap/chap2}
+    \include{chap/chap3}
 	% 结论。
 	\include{chap/conclusion}
 
